@@ -2,7 +2,7 @@ import tensorflow as tf
 import numpy as np
 import tensorflow.keras.losses as kls
 
-from core.PPO.models import pi_model, v_model, pi_gaussian_model
+from core.PPO.models import pi_model, v_model, pi_gaussian_model, pi_model_with_conv
 from core.PPO.policy_base import PolicyBase
 from utils.logger import log
 
@@ -15,7 +15,8 @@ class Policy_PPO_Categorical(PolicyBase):
 
         super().__init__(**policy_params, num_actions= num_actions)
 
-        self.pi = pi_model(self.hidden_sizes_pi, self.num_actions)
+        # self.pi = pi_model(self.hidden_sizes_pi, self.num_actions)
+        self.pi = pi_model_with_conv(self.hidden_sizes_pi, self.num_actions)
         self.v = v_model(self.hidden_sizes_v)
 
 

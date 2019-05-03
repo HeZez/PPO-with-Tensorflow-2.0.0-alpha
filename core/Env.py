@@ -43,6 +43,13 @@ class UnityEnv():
     def num_actions(self):
         return self.default_brain.vector_action_space_size[0]
         
+    @property
+    def is_visual(self):
+
+        if len(self.info.visual_observations[0]) is not 0:
+            return True
+        else:
+            return False
     
     @property
     def num_obs(self):

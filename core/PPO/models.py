@@ -2,6 +2,7 @@ import tensorflow as tf
 import numpy as np
 import tensorflow.keras.layers as kl
 
+
 EPS = 1e-8
 
 class ProbabilityDistribution(tf.keras.Model):
@@ -10,9 +11,49 @@ class ProbabilityDistribution(tf.keras.Model):
         return tf.squeeze(tf.random.categorical(logits, 1), axis=-1)
     
 
+class convolutional_net(tf.keras.model):
+
+    def __init__(self):
+
+        super().__init__('convolutional_net')
+
+        self.model = tf.keras.models.Sequential()
+        self.model.add(kl.Conv2D(32, (3, 3), activation='relu'))
+        self.model.add(kl.MaxPooling2D((2, 2)))
+        self.model.add(kl.Conv2D(64, (3, 3), activation='relu'))
+        self.model.add(kl.MaxPooling2D((2, 2)))
+        self.model.add(kl.Conv2D(64, (3, 3), activation='relu'))
+        self.model.add(kl.Flatten())
+
+        
+    def call(self, inputs):
+
+        print(inputs)
+        output = self.model(inputs)
+        return output
+
+class pi_model_with_conv(tf.keras.Model):
+
+    def __init__(self, hidden_sizes_pi=(32, 32), num_actions=None):
+        
+        self.conv = convolutional_net()
+        self.pi = pi_model(hidden_sizes_pi, num_actions)
+
+    def call(self, inputs):
+        conv_output = self.conv.predict(inputs)
+        logits = self.pi.predict(conv_output)
+        return logits
+
+    def get_action_logp(self,obs):
+        conv_output = self.conv.predict(obs)
+        action, logp_t = self.pi.get_action_logp(conv_output)
+        return tf.squeeze(action, axis=-1), np.squeeze(logp_t, axis=-1)
+
+        
+
 class pi_model(tf.keras.Model):
 
-    def __init__(self, hidden_sizes_pi=(32,32), num_actions=None):
+    def __init__(self, hidden_sizes_pi=(32, 32), num_actions=None):
 
         super().__init__('pi_model')
 

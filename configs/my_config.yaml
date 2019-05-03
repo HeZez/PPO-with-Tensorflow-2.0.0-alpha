@@ -23,7 +23,7 @@ train_params:
 
   # Training mode | Load the Model yes/no
   training: yes
-  load_model: yes
+  load_model: no
   save_freq: 1
   
 # Choose the policy parameters for training

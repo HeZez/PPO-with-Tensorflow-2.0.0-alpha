@@ -47,7 +47,10 @@ class Trainer_PPO:
 
         if self.env.action_space_type == 'discrete':
 
-            self.agent = Policy_PPO_Categorical(policy_params= policy_params, num_actions= self.env.num_actions)
+            if self.env.is_visual:
+                self.agent = Policy_PPO_Categorical(policy_params= policy_params, num_actions= self.env.num_actions)
+            else:  
+                self.agent = Policy_PPO_Categorical(policy_params= policy_params, num_actions= self.env.num_actions)
 
             if self.sil_params['use_sil']:
 
