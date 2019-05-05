@@ -11,11 +11,11 @@ class ProbabilityDistribution(tf.keras.Model):
         return tf.squeeze(tf.random.categorical(logits, 1), axis=-1)
     
 
-class convolutional_net(tf.keras.model):
+class convolutional_net(tf.keras.Model):
 
     def __init__(self):
 
-        super().__init__('convolutional_net')
+        super().__init__('convolutionapassl_net')
 
         self.model = tf.keras.models.Sequential()
         self.model.add(kl.Conv2D(32, (3, 3), activation='relu'))
@@ -28,14 +28,15 @@ class convolutional_net(tf.keras.model):
         
     def call(self, inputs):
 
-        print(inputs)
-        output = self.model(inputs)
+        tensor_input = tf.convert_to_tensor(inputs)
+        output = self.model(tensor_input)
         return output
 
 class pi_model_with_conv(tf.keras.Model):
 
     def __init__(self, hidden_sizes_pi=(32, 32), num_actions=None):
         
+        super().__init__('pi_with_conv')
         self.conv = convolutional_net()
         self.pi = pi_model(hidden_sizes_pi, num_actions)
 

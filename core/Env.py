@@ -57,8 +57,14 @@ class UnityEnv():
 
     
     def reset(self):
+
         info = self.env.reset()[self.default_brain_name]
-        o = info.vector_observations[0][None, :]
+
+        if self.is_visual:
+            o = info.visual_observations[0][0]
+        else:
+            o = info.vector_observations[0][None, :]
+
         r, d = 0, False
         return o, r, d
 
@@ -72,7 +78,12 @@ class UnityEnv():
 
         r = info.rewards[0]
         d = info.local_done[0]
-        o = info.vector_observations[0][None, :]
+
+        if self.is_visual:
+            o = info.visual_observations[0][0]
+        else:
+            o = info.vector_observations[0][None, :]
+        
         return o, r, d
         
 
