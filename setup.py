@@ -15,7 +15,7 @@ setup(
 
     install_requires=[
         'mlagents_envs==0.8.1',
-        'tensorflow==2.0.0-alpha',
+        'tensorflow==2.0.0-alpha0',
         'gym',
         'tensorboard',
         'flake8',
