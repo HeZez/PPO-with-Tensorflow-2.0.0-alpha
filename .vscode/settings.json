@@ -11,6 +11,6 @@
         "**/__pycache__": true
     },
     "python.linting.pylintArgs": [],
-    "python.pythonPath": "/home/wulz/anaconda3/envs/tf20/bin/python",
+    "python.pythonPath": "E:\\Anaconda\\envs\\PPO\\python.exe",
     "python.jediEnabled": false
 }

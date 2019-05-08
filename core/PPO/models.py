@@ -2,7 +2,6 @@ import tensorflow as tf
 import numpy as np
 import tensorflow.keras.layers as kl
 
-
 EPS = 1e-8
 
 class ProbabilityDistribution(tf.keras.Model):
@@ -10,47 +9,6 @@ class ProbabilityDistribution(tf.keras.Model):
     def call(self, logits):
         return tf.squeeze(tf.random.categorical(logits, 1), axis=-1)
     
-
-class convolutional_net(tf.keras.Model):
-
-    def __init__(self):
-
-        super().__init__('convolutionapassl_net')
-
-        self.model = tf.keras.models.Sequential()
-        self.model.add(kl.Conv2D(32, (3, 3), activation='relu'))
-        self.model.add(kl.MaxPooling2D((2, 2)))
-        self.model.add(kl.Conv2D(64, (3, 3), activation='relu'))
-        self.model.add(kl.MaxPooling2D((2, 2)))
-        self.model.add(kl.Conv2D(64, (3, 3), activation='relu'))
-        self.model.add(kl.Flatten())
-
-        
-    def call(self, inputs):
-
-        tensor_input = tf.convert_to_tensor(inputs)
-        output = self.model(tensor_input)
-        return output
-
-class pi_model_with_conv(tf.keras.Model):
-
-    def __init__(self, hidden_sizes_pi=(32, 32), num_actions=None):
-        
-        super().__init__('pi_with_conv')
-        self.conv = convolutional_net()
-        self.pi = pi_model(hidden_sizes_pi, num_actions)
-
-    def call(self, inputs):
-        conv_output = self.conv.predict(inputs)
-        logits = self.pi.predict(conv_output)
-        return logits
-
-    def get_action_logp(self,obs):
-        conv_output = self.conv.predict(obs)
-        action, logp_t = self.pi.get_action_logp(conv_output)
-        return tf.squeeze(action, axis=-1), np.squeeze(logp_t, axis=-1)
-
-        
 
 class pi_model(tf.keras.Model):
 
@@ -88,6 +46,9 @@ class pi_gaussian_model(tf.keras.Model):
         self.num_outputs = num_outputs
         self.hidden_layers = tf.keras.Sequential([kl.Dense(h, activation= activation) for h in hidden_sizes])
         self.mu = kl.Dense(num_outputs, name='policy_mu')
+
+        # std deviation is a trainable variable and is updated by the pi optimizer
+        self.log_std = tf.Variable(name= 'log_std', initial_value= -0.5 * np.ones(self.num_outputs, dtype=np.float32))
         
         
     def call(self, inputs):
@@ -113,12 +74,13 @@ class pi_gaussian_model(tf.keras.Model):
         # mu
         mu = self.predict(obs)
         # std deviation
-        log_std = tf.Variable(name= 'log_std', initial_value= -0.5 * np.ones(self.num_outputs, dtype=np.float32))
-        std = tf.exp(log_std)
+        std = tf.exp(self.log_std)
         # sample action
         action = mu + tf.random.normal(tf.shape(mu)) * std
+        # clip actions in range of -1,1 
+        action = tf.clip_by_value(action, -1, 1)
         # calculate logp_old
-        logp_t = self.gaussian_likelihood(action, mu, log_std)
+        logp_t = self.gaussian_likelihood(action, mu, self.log_std)
 
         return np.squeeze(action, axis=-1), np.squeeze(logp_t, axis=-1)
 
@@ -128,7 +90,7 @@ class pi_gaussian_model(tf.keras.Model):
         '''
         calculate the liklihood of a gaussian distribution for parameters x given the variables mu and log_std
         '''
-        pre_sum = -0.5 * (((x-mu)/(tf.exp(log_std)+EPS))**2 + 2 * log_std + np.log(2*np.pi))
+        pre_sum = -0.5 * (((x-mu) / (tf.exp(log_std)+EPS))**2 + 2 * log_std + np.log(2*np.pi))
         return tf.reduce_sum(pre_sum, axis=1)
 
 

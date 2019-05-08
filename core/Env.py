@@ -1,6 +1,9 @@
 from mlagents.envs import UnityEnvironment
+import numpy as np
+import matplotlib.pyplot as plt
 from utils.logger import log
 import gym
+
 
 
 class UnityEnv():
@@ -46,7 +49,7 @@ class UnityEnv():
     @property
     def is_visual(self):
 
-        if len(self.info.visual_observations[0]) is not 0:
+        if self.default_brain.number_visual_observations is not 0:
             return True
         else:
             return False
@@ -62,6 +65,9 @@ class UnityEnv():
 
         if self.is_visual:
             o = info.visual_observations[0][0]
+            o = o[None, : , : , :]
+            # plt.imshow(o[0])
+            # plt.show()
         else:
             o = info.vector_observations[0][None, :]
 
@@ -81,6 +87,7 @@ class UnityEnv():
 
         if self.is_visual:
             o = info.visual_observations[0][0]
+            o = o[None, : , : , :]
         else:
             o = info.vector_observations[0][None, :]
         

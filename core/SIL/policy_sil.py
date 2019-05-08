@@ -28,7 +28,7 @@ class SIL:
         # SIL Arguments
         self.use_sil = use_sil
         self.sil_iters = sil_iters
-        self.w_value = 0.01
+        self.w_value = 1
 
         self.pi = pi
         self.v = v

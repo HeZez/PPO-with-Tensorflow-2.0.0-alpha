@@ -43,14 +43,11 @@ class Trainer_PPO:
         pprint(policy_params, indent=5, width=10)
 
         self.buffer = Buffer_PPO(steps_per_epoch, obs_size= self.env.num_obs, act_size= self.env.num_actions, 
-                                    act_type= self.env.action_space_type, gamma= gamma, lam= lam)
+                                    act_type= self.env.action_space_type, gamma= gamma, lam= lam, is_visual = self.env.is_visual)
 
         if self.env.action_space_type == 'discrete':
 
-            if self.env.is_visual:
-                self.agent = Policy_PPO_Categorical(policy_params= policy_params, num_actions= self.env.num_actions)
-            else:  
-                self.agent = Policy_PPO_Categorical(policy_params= policy_params, num_actions= self.env.num_actions)
+            self.agent = Policy_PPO_Categorical(policy_params= policy_params, num_actions= self.env.num_actions, is_visual = self.env.is_visual)
 
             if self.sil_params['use_sil']:
 

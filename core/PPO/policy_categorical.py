@@ -1,9 +1,10 @@
 import tensorflow as tf
 import numpy as np
-import tensorflow.keras.losses as kls
 
-from core.PPO.models import pi_model, v_model, pi_gaussian_model, pi_model_with_conv
+from core.PPO.models import pi_model, v_model
+from core.PPO.models_conv import pi_model_with_conv, v_model_with_conv
 from core.PPO.policy_base import PolicyBase
+
 from utils.logger import log
 
 
@@ -11,13 +12,18 @@ class Policy_PPO_Categorical(PolicyBase):
 
     def __init__(self,
                  policy_params=dict(), 
-                 num_actions = None):
+                 num_actions = None, 
+                 is_visual = False):
 
         super().__init__(**policy_params, num_actions= num_actions)
 
-        # self.pi = pi_model(self.hidden_sizes_pi, self.num_actions)
-        self.pi = pi_model_with_conv(self.hidden_sizes_pi, self.num_actions)
-        self.v = v_model(self.hidden_sizes_v)
+        if is_visual:
+            self.pi = pi_model_with_conv(self.hidden_sizes_pi, self.num_actions)
+            self.v = v_model_with_conv(self.hidden_sizes_v)
+        else:
+            self.pi = pi_model(self.hidden_sizes_pi, self.num_actions)
+            self.v = v_model(self.hidden_sizes_v)
+
 
 
     def update(self, observations, actions, advs, returns, logp_t):
@@ -40,11 +46,10 @@ class Policy_PPO_Categorical(PolicyBase):
         return loss_pi.numpy().mean(), loss_entropy.numpy().mean(), approx_ent.numpy().mean(), kl.numpy().mean(), loss_v.numpy().mean()
         
 
-
-    def _value_loss(self, returns, value):
+    def _value_loss(self, returns, values):
 
         # Mean Squared Error
-        loss = tf.reduce_mean((returns - value)**2)
+        loss = tf.reduce_mean(tf.square(returns - values))
         return loss 
 
 
@@ -60,8 +65,8 @@ class Policy_PPO_Categorical(PolicyBase):
         pi_loss = -tf.reduce_mean(tf.minimum(ratio * adv, min_adv))
 
         # Entropy loss 
-        # entropy_loss_2 = tf.reduce_mean(self.entropy2(logits)) # calculated with Cross Entropy over logits with itself ??
         entropy_loss = tf.reduce_mean(self.entropy(logits))
+        # entropy_loss = tf.reduce_mean(self.entropy2(logits)) 
 
         # Total Loss
         pi_loss -= self.ent_coef * entropy_loss
@@ -73,7 +78,7 @@ class Policy_PPO_Categorical(PolicyBase):
         return pi_loss, entropy_loss, approx_ent, approx_kl
 
     
-    @tf.function
+    #@tf.function
     def train_pi_one_step(self, obs, act, adv, logp_old):
 
         with tf.GradientTape() as tape:
@@ -82,12 +87,13 @@ class Policy_PPO_Categorical(PolicyBase):
             pi_loss, entropy_loss, approx_ent, approx_kl  = self._pi_loss(logits, logp_old, act, adv)
             
         grads = tape.gradient(pi_loss, self.pi.trainable_variables)
+        grads, grad_norm = tf.clip_by_global_norm(grads, 0.5)
         self.optimizer_pi.apply_gradients(zip(grads, self.pi.trainable_variables))
 
         return pi_loss, entropy_loss, approx_ent, approx_kl
 
 
-    @tf.function
+    #@tf.function
     def train_v_one_step(self, obs, returns):
 
         with tf.GradientTape() as tape:
@@ -96,6 +102,7 @@ class Policy_PPO_Categorical(PolicyBase):
             v_loss = self._value_loss(returns, values)
 
         grads = tape.gradient(v_loss, self.v.trainable_variables)
+        grads, grad_norm = tf.clip_by_global_norm(grads, 0.5)
         self.optimizer_v.apply_gradients(zip(grads, self.v.trainable_variables))
 
         return v_loss
@@ -122,8 +129,9 @@ class Policy_PPO_Categorical(PolicyBase):
     def entropy2(self, logits):
         '''
         Entropy calc with keras over logits ??
+        # calculated with Cross Entropy over logits with itself ??
         '''
-        entropy = kls.categorical_crossentropy(logits, logits, from_logits=True)
+        entropy = tf.keras.losses.categorical_crossentropy(logits, logits, from_logits=True)
         return entropy
 
     def cat_entropy_softmax(self, p0):
