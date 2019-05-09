@@ -5,7 +5,6 @@ from utils.logger import log
 import gym
 
 
-
 class UnityEnv():
     def __init__(self, env_name="", seed=0):
 
@@ -19,8 +18,11 @@ class UnityEnv():
             self.env = UnityEnvironment(file_name = env_name, seed = seed)
         log("END ML AGENTS INFO")
 
-        self.info = self.env.reset()[self.default_brain_name]
+        self.info = self.env.reset()[self.default_brain_name] 
         # print(self.info)
+
+        self._default_brain_name = None
+        self._brain_teacher = None
 
     @property
     def _get_env(self):
@@ -40,7 +42,11 @@ class UnityEnv():
 
     @property
     def default_brain_name(self):
-        return self.env.brain_names[0]
+        if self.is_behavioral_cloning:
+            self._default_brain_name = 'Student'
+        else:
+            self._default_brain_name = self.env.brain_names[0]
+        return self._default_brain_name
 
     @property
     def num_actions(self):
@@ -48,11 +54,32 @@ class UnityEnv():
         
     @property
     def is_visual(self):
-
         if self.default_brain.number_visual_observations is not 0:
             return True
         else:
             return False
+
+    @property 
+    def is_behavioral_cloning(self):
+
+        bc = False
+
+        for name in self.env.brain_names:
+            if name == 'Teacher':
+                bc = True
+                break
+        
+        return bc
+
+    @property
+    def _teacher_brain(self):
+        if self.is_behavioral_cloning:
+            return self.env.brains['Teacher']
+
+    @property
+    def _teacher_brain_name(self):
+        if self.is_behavioral_cloning:
+            return 'Teacher'    
     
     @property
     def num_obs(self):
@@ -61,37 +88,88 @@ class UnityEnv():
     
     def reset(self):
 
-        info = self.env.reset()[self.default_brain_name]
+        if self.is_behavioral_cloning:
 
-        if self.is_visual:
-            o = info.visual_observations[0][0]
-            o = o[None, : , : , :]
-            # plt.imshow(o[0])
-            # plt.show()
+            info = self.env.reset()
+
+            if self.is_visual:
+                o_student = info[self.default_brain_name].visual_observations[0][0]
+                o_student = o_student[None, : , : , :]
+
+                o_teacher = info[self._teacher_brain_name].visual_observations[0][0]
+                o_teacher = o_teacher[None, : , : , :]
+
+            else:
+                o_student = info[self.default_brain_name].vector_observations[0][None, :]
+                o_teacher = info[self._teacher_brain_name].vector_observations[0][None, :]
+
+            act_teacher = info[self._teacher_brain_name].previous_vector_actions[0]
+            r, d = 0, False
+            return o_student, r, d, o_teacher, act_teacher
+
         else:
-            o = info.vector_observations[0][None, :]
+            info = self.env.reset()[self.default_brain_name]
 
-        r, d = 0, False
-        return o, r, d
+            if self.is_visual:
+                o = info.visual_observations[0][0]
+                o = o[None, : , : , :]
+                # plt.imshow(o[0])
+                # plt.show()
+            else:
+                o = info.vector_observations[0][None, :]
 
+            r, d = 0, False
+            return o, r, d
+
+
+    action = dict()
+    # prev_obs = None
 
     def step(self, a):
 
-        if self.action_space_type == 'continuous':
-            info = self.env.step(a)[self.default_brain_name]
-        else:
-            info = self.env.step([a])[self.default_brain_name] # a is int here
+        if self.is_behavioral_cloning:
 
-        r = info.rewards[0]
-        d = info.local_done[0]
+            self.action['Student'] = [a]
 
-        if self.is_visual:
-            o = info.visual_observations[0][0]
-            o = o[None, : , : , :]
+            if self.action_space_type == 'continuous':
+                info = self.env.step(self.action)
+            else:
+                info = self.env.step(self.action)
+
+            r = info[self.default_brain_name].rewards[0]
+            d = info[self.default_brain_name].local_done[0]
+
+            if self.is_visual:
+                o_student = info[self.default_brain_name].visual_observations[0][0]
+                o_student = o_student[None, : , : , :]
+                o_teacher = info[self._teacher_brain_name].visual_observations[0][0]
+                o_teacher = o_teacher[None, : , : , :]
+
+            else:
+                o_student = info[self.default_brain_name].vector_observations[0][None, :]
+                o_teacher = info[self._teacher_brain_name].vector_observations[0][None, :]
+
+            act_teacher = info[self._teacher_brain_name].previous_vector_actions[0]
+
+            return o_student, r, d, o_teacher, act_teacher
+
         else:
-            o = info.vector_observations[0][None, :]
-        
-        return o, r, d
+
+            if self.action_space_type == 'continuous':
+                info = self.env.step(a)[self.default_brain_name]
+            else:
+                info = self.env.step([a])[self.default_brain_name] # a is int here
+
+            r = info.rewards[0]
+            d = info.local_done[0]
+
+            if self.is_visual:
+                o = info.visual_observations[0][0]
+                o = o[None, : , : , :]
+            else:
+                o = info.vector_observations[0][None, :]
+            
+            return o, r, d
         
 
 
