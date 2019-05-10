@@ -19,7 +19,8 @@
             "console": "externalTerminal",
             "args": [
                 "${workspaceFolder}/configs/my_config.yaml"
-            ]
+            ],
+            "preLaunchTask": "Start Unity Task"
         }
     ]
 }
