@@ -78,7 +78,7 @@ class Policy_PPO_Categorical(PolicyBase):
         return pi_loss, entropy_loss, approx_ent, approx_kl
 
     
-    #@tf.function
+    @tf.function
     def train_pi_one_step(self, obs, act, adv, logp_old):
 
         with tf.GradientTape() as tape:
@@ -93,7 +93,7 @@ class Policy_PPO_Categorical(PolicyBase):
         return pi_loss, entropy_loss, approx_ent, approx_kl
 
 
-    #@tf.function
+    @tf.function
     def train_v_one_step(self, obs, returns):
 
         with tf.GradientTape() as tape:

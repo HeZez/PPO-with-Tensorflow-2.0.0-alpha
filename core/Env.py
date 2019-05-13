@@ -123,7 +123,6 @@ class UnityEnv():
 
 
     action = dict()
-    # prev_obs = None
 
     def step(self, a):
 

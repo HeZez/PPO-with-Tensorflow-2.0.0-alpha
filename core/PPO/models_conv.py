@@ -10,7 +10,7 @@ class ProbabilityDistribution(tf.keras.Model):
         return tf.squeeze(tf.random.categorical(logits, 1), axis=-1)
     
 
-def conv_model_1(shape=(84,84,3), activation='relu'):
+def conv_model_sequential_API(shape=(84,84,3), activation='relu'):
     '''
         filters = feature maps where each has an dimensionality d x d 
 
@@ -31,26 +31,31 @@ def conv_model_1(shape=(84,84,3), activation='relu'):
     model.add(kl.Conv2D(filters = 32, kernel_size = (5, 5), strides = 4, padding='valid', activation= activation))
     model.add(kl.Conv2D(filters = 64, kernel_size = (3, 3), strides = 4, padding='valid', activation= activation))
     model.add(kl.Flatten())
+
     return model
 
-def conv_model_2(shape=(84,84,3), activation='relu'):
-    model = tf.keras.Sequential()
-    model.add(tf.keras.Input(shape=shape))
-    model.add(kl.Conv2D(32, (3, 3), activation=activation))
-    model.add(kl.MaxPooling2D((2, 2)))
-    model.add(kl.Conv2D(64, (3, 3), activation=activation))
-    model.add(kl.MaxPooling2D((2, 2)))
-    model.add(kl.Conv2D(64, (3, 3), activation=activation))
-    model.add(kl.Flatten())
+def conv_model_functional_API(shape=(84,84,3), activation='elu'):
+
+    inputs = tf.keras.Input(shape=shape)
+    x = kl.Conv2D(filters= 32, kernel_size= (5, 5), strides= 1, padding= 'valid', activation= activation, name='Functional_API')(inputs)
+    x = kl.MaxPooling2D((2, 2))(x)
+    x = kl.Conv2D(filters= 64, kernel_size= (3, 3), strides= 2, padding= 'valid', activation= activation)(x)
+    x = kl.MaxPooling2D((2, 2))(x)
+    outputs = kl.Flatten()(x)
+
+    model = tf.keras.Model(inputs= inputs, outputs= outputs)
+
     return model
 
 def conv_model(shape=(84,84,3), activation='elu'):
 
-    conv1 = kl.Conv2D(filters= 32, kernel_size= (5,5), strides= 4, padding= 'valid', activation= activation, input_shape= (84,84,3))
-    conv2 = kl.Conv2D(filters= 64, kernel_size= (3,3), strides= 4, padding= 'valid', activation= activation)
+    conv1 = kl.Conv2D(filters= 32, kernel_size= (5,5), strides= 1, padding= 'valid', activation= activation, input_shape= (84,84,3))
+    max_pool_1 = kl.MaxPooling2D((2,2))
+    conv2 = kl.Conv2D(filters= 64, kernel_size= (3,3), strides= 2, padding= 'valid', activation= activation)
+    max_pool_2 = kl.MaxPooling2D((2,2))
     flat = kl.Flatten()
     
-    return conv1, conv2, flat
+    return conv1, max_pool_1, conv2, max_pool_2, flat
 
 
 class pi_model_with_conv(tf.keras.Model):
@@ -60,31 +65,27 @@ class pi_model_with_conv(tf.keras.Model):
         super().__init__('pi_with_conv')
         
         self.num_actions = num_actions
-        
-        # self.conv1 = kl.Conv2D(32, input_shape=(84,84,3), kernel_size=(5,5),strides= 4,padding='valid', activation='elu')
-        # self.conv2 = kl.Conv2D(64, kernel_size=(3,3),strides= 4,padding='valid', activation='elu')
-        # self.flat = kl.Flatten()
 
-        self.conv1, self.conv2, self.flat = conv_model()
+        self.model = conv_model_functional_API()
         
         self.hidden_pi_layers = tf.keras.Sequential([kl.Dense(h, activation='relu') for h in hidden_sizes_pi])
         self.logits = kl.Dense(num_actions, name='policy_logits')
 
         self.dist = ProbabilityDistribution()
 
+    @tf.function
     def call(self, inputs):
         
         tensor_input = tf.convert_to_tensor(inputs)
 
-        x = self.conv1(tensor_input)
-        x = self.conv2(x)
-        x = self.flat(x)
+        x = self.model(tensor_input)
 
         hidden_logs = self.hidden_pi_layers(x)
         logits = self.logits(hidden_logs)
 
         return logits
 
+    #@tf.function
     def get_action_logp(self,obs):
 
         logits = self.predict(obs)
@@ -101,28 +102,31 @@ class v_model_with_conv(tf.keras.Model):
 
         super().__init__('v_with_conv')
 
-        # self.conv1 = kl.Conv2D(32,input_shape=(84,84,3), kernel_size=(5,5),strides= 4,padding='valid', activation='elu')
-        # self.conv2 = kl.Conv2D(64, kernel_size=(3,3),strides= 4,padding='valid', activation='elu')
-        # self.flat = kl.Flatten()
-
-        self.conv1, self.conv2, self.flat = conv_model()
+        # self.conv1, self.max_pool_1, self.conv2,self.max_pool_2, self.flat = conv_model()
+        self.model = conv_model_functional_API()
 
         self.hidden_v_layers = tf.keras.Sequential([kl.Dense(h, activation='relu') for h in hidden_sizes_v])
         self.value= kl.Dense(1, name='value')
 
+    @tf.function
     def call(self, inputs):
 
         tensor_input = tf.convert_to_tensor(inputs)
-        
-        x = self.conv1(tensor_input)
-        x = self.conv2(x)
-        x = self.flat(x)
+
+        # x = self.conv1(tensor_input)
+        # x = self.max_pool_1(x)
+        # x = self.conv2(x)
+        # x = self.max_pool_2(x)
+        # x = self.flat(x)
+
+        x = self.model(tensor_input)
 
         hidden_vals = self.hidden_v_layers(x)
         vals = self.value(hidden_vals)
 
         return vals
     
+    #@tf.function
     def get_value(self, obs):
 
         value = self.predict(obs)
