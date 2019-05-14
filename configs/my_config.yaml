@@ -22,8 +22,8 @@ train_params:
   seed: 0
 
   # Training mode | Load the Model yes/no
-  training: yes
-  load_model: no
+  training: no
+  load_model: yes
   save_freq: 10
   
 # Choose the policy parameters for training

@@ -12,7 +12,7 @@ def run(config=None):
     with open(config) as file:
         config = yaml.load(file, Loader=yaml.SafeLoader)
     # print(config)
-    m = Manager(**config)
+    m = Manager(**config, config=config)
     m.start()
 
 # Main Entry Point

@@ -25,6 +25,7 @@ class Trainer_PPO:
                  save_freq=1,
                  policy_params=dict(),
                  sil_params=dict(),
+                 logger_name="",
                  **kwargs):
 
         self.env = env
@@ -65,7 +66,7 @@ class Trainer_PPO:
         if self.env.is_behavioral_cloning:
             self.imitation = Behavioral_Cloning(pi = self.agent.pi, optimizer_pi = self.agent.optimizer_pi, num_actions= self.env.num_actions)
 
-        self.logger = Logger(self.env.get_env_academy_name)
+        self.logger = Logger(logger_name)
 
         
     def start(self):
