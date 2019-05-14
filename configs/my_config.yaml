@@ -22,8 +22,8 @@ train_params:
   seed: 0
 
   # Training mode | Load the Model yes/no
-  training: no
-  load_model: yes
+  training: yes
+  load_model: no
   save_freq: 10
   
 # Choose the policy parameters for training
@@ -33,8 +33,8 @@ policy_params:
   # leraning rate Policy Network
   lr_pi:  0.001
   # Update Iterations Pi and V
-  train_pi_iters: 4    
-  train_v_iters: 4
+  train_pi_iters: 40   
+  train_v_iters: 40
   # Hidden Layers
   hidden_sizes_pi: [32,32]
   hidden_sizes_v: [32,32]
@@ -47,6 +47,11 @@ policy_params:
 sil_params:
   # Use SIL yes/no
   use_sil: no
+  batch_size_sil: 128
   # SIL Update iterations
   sil_iters: 4
 
+bc_params:
+  use_bc: yes
+  batch_size_bc: 200
+  iters_bc: 100

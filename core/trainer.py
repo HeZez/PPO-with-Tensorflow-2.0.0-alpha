@@ -2,16 +2,18 @@ import tensorflow as tf
 import numpy as np
 from pprint import pprint
 
-from core.PPO.buffer import Buffer_PPO, Buffer_Imitation
+from core.PPO.buffers import Buffer_PPO, Buffer_Imitation
 from core.PPO.policy_categorical import Policy_PPO_Categorical
-from core.PPO.policy_continuous import Policy_PPO_Continuous
+from core.PPO.policy_gaussian import Policy_PPO_Gaussian
 from core.SIL.policy_sil import SIL
-from core.Imitation.Behavioral_Cloning import Behavioral_Cloning
+from core.Imitation.policy_bc import Behavioral_Cloning
 from core.Env import UnityEnv
+
 from utils.logger import log, Logger 
 
 
 class Trainer_PPO:
+
     def __init__(self,
                  env=UnityEnv,
                  epochs=10,
@@ -25,6 +27,7 @@ class Trainer_PPO:
                  save_freq=1,
                  policy_params=dict(),
                  sil_params=dict(),
+                 bc_params=dict(),
                  logger_name="",
                  **kwargs):
 
@@ -40,31 +43,31 @@ class Trainer_PPO:
         self.save_freq = save_freq
         self.policy_params = policy_params
         self.sil_params = sil_params
+        self.bc_params = bc_params
 
         log("Policy Parameters")
         pprint(policy_params, indent=5, width=10)
 
-        self.buffer = Buffer_PPO(steps_per_epoch, obs_size= self.env.num_obs, act_size= self.env.num_actions, 
-                                    act_type= self.env.action_space_type, gamma= gamma, lam= lam, is_visual = self.env.is_visual)
+        if isinstance(self.env.shape, tuple):
+            print(self.env.shape)
 
-        self.imitation_buf = Buffer_Imitation(steps_per_epoch, obs_size=self.env.num_obs, act_size=self.env.num_actions,
-                                                act_type = self.env.action_space_type, is_visual=self.env.is_visual)
+        self.buffer_ppo = Buffer_PPO(steps_per_epoch, obs_size= self.env.num_obs, act_size= self.env.num_actions, 
+                                        act_type= self.env.action_space_type, gamma= gamma, lam= lam, is_visual = self.env.is_visual, shape=self.env.shape)
+
+        self.buffer_imitation = Buffer_Imitation(steps_per_epoch, obs_size=self.env.num_obs, act_size=self.env.num_actions,
+                                                    act_type = self.env.action_space_type, is_visual=self.env.is_visual)
 
         if self.env.action_space_type == 'discrete':
-
             self.agent = Policy_PPO_Categorical(policy_params= policy_params, num_actions= self.env.num_actions, is_visual = self.env.is_visual)
-
             if self.sil_params['use_sil']:
-
                 self.SIL = SIL(**self.sil_params, pi =self.agent.pi, v= self.agent.v, 
                                 optimizer_pi = self.agent.optimizer_pi, optimizer_v = self.agent.optimizer_v, num_actions = self.env.num_actions)
 
         elif self.env.action_space_type == 'continuous':
-
-            self.agent = Policy_PPO_Continuous(policy_params= policy_params, num_actions= self.env.num_actions)
+            self.agent = Policy_PPO_Gaussian(policy_params= policy_params, num_actions= self.env.num_actions)
 
         if self.env.is_behavioral_cloning:
-            self.imitation = Behavioral_Cloning(pi = self.agent.pi, optimizer_pi = self.agent.optimizer_pi, num_actions= self.env.num_actions)
+            self.imitation = Behavioral_Cloning(**self.bc_params, pi = self.agent.pi, optimizer_pi = self.agent.optimizer_pi, num_actions= self.env.num_actions)
 
         self.logger = Logger(logger_name)
 
@@ -103,7 +106,7 @@ class Trainer_PPO:
                 a, logp_t = self.agent.pi.get_action_logp(o)
                 v_t = self.agent.v.get_value(o)           
                  
-                self.buffer.store(o, a, r, v_t, logp_t)
+                self.buffer_ppo.store(o, a, r, v_t, logp_t)
                 
                 # make step in env
                 if self.env.is_behavioral_cloning:
@@ -122,14 +125,14 @@ class Trainer_PPO:
                         log('Warning: trajectory was cut off by epoch at %d steps.' %(ep_len))
                         
                     last_val = r if d else self.agent.v.get_value(o)
-                    self.buffer.finish_path(last_val)
+                    self.buffer_ppo.finish_path(last_val)
 
                     if terminal: 
                         self.logger.store('Rewards', ep_ret)
                         self.logger.store('Eps Length', ep_len)
 
                         if self.sil_params['use_sil']:
-                            trajectory = self.buffer.get_trajectory()
+                            trajectory = self.buffer_ppo.get_trajectory()
                             self.SIL.add_episode_to_per(trajectory)
 
                     if self.env.is_behavioral_cloning:
@@ -141,40 +144,44 @@ class Trainer_PPO:
 
                 # Imitation Learning
                 if self.env.is_behavioral_cloning:
-
-                    self.imitation_buf.store(prev_obs_teacher, prev_act_teacher)
-                    # remember previous observation
+                    self.buffer_imitation.store(prev_obs_teacher, prev_act_teacher)
                     prev_obs_teacher = o_teacher
 
+                # END OF FOR STEP LOOP
+
             # Update via PPO
-            obs, act, adv, ret, logp_old = self.buffer.get()
+            obs, act, adv, ret, logp_old = self.buffer_ppo.get()
             loss_pi, loss_entropy, approx_ent, kl, loss_v = self.agent.update(obs,act,adv, ret, logp_old)
 
-            # Update via Imitation Learning
-            if self.env.is_behavioral_cloning:
-
-                im_batch_size = 200
-                im_obs, im_act = self.imitation_buf.sample(im_batch_size)
-
-                if len(im_act) > 0:
-                    print("Updating via Imitation ....")
-                    self.imitation.update_BC(im_obs, im_act)
-
-            # Update via Self Imitation Learning
-            if self.sil_params['use_sil']:
-                
-                self.SIL.update_SIL()
-                
-            # Saving every n steps
-            if (epoch % self.save_freq == 0) or (epoch == self.epochs - 1):
-                self.agent.save()
-            
-            # Logging
+            # Logging PPO
             self.logger.store('Pi Loss', loss_pi)
             self.logger.store('Ent Loss', loss_entropy)
             self.logger.store('Approx Ent', approx_ent)
             self.logger.store('KL', kl)
             self.logger.store('V Loss', loss_v)
+
+            # Update via Self Imitation Learning
+            if self.sil_params['use_sil']:
+                loss_pi_sil, loss_v_sil = self.SIL.update_SIL()
+                self.logger.store('PI Loss SIL', loss_pi_sil)
+                self.logger.store('V Loss SIL', loss_v_sil)
+
+            # Update via Imitation Learning
+            if self.env.is_behavioral_cloning:
+
+                im_batch_size = self.bc_params['batch_size_bc']
+                im_obs, im_act = self.buffer_imitation.sample(im_batch_size)
+
+                if len(im_act) > 0:
+                    log('Updating via Behavioral Cloning ...')
+                    loss_bc = self.imitation.update_BC(im_obs, im_act)
+                    self.logger.store('BC Loss', loss_bc)
+  
+            # Saving every n steps
+            if (epoch % self.save_freq == 0) or (epoch == self.epochs - 1):
+                self.agent.save()
+            
+            # Dump Logs
             self.logger.log_metrics(epoch)
 
             

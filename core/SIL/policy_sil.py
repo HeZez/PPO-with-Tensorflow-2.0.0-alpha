@@ -15,6 +15,7 @@ class SIL:
 
     def __init__(self,
                     use_sil= False,
+                    batch_size_sil= 100,
                     sil_iters= 1, 
 
                     pi = None, 
@@ -30,6 +31,8 @@ class SIL:
         self.sil_iters = sil_iters
         self.w_value = 1
 
+        self.batch_size_sil = batch_size_sil
+
         self.pi = pi
         self.v = v
         self.optimizer_pi = optimizer_pi
@@ -44,17 +47,14 @@ class SIL:
         '''
         Update Cycle for SIL if SIL is activated
         '''
-        o, a, R, idxs, is_weights = self.per_buffer.sample(128)
+        o, a, R, idxs, is_weights = self.per_buffer.sample(self.batch_size_sil)
 
         for _ in range(self.sil_iters):
             loss_pi, adv, loss_v = self.train_sil_one_step(o, a, R, is_weights)
             
         self.per_buffer.update_priorities(idxs, adv)
-
-        print('loss pi: ' + str(loss_pi.numpy().mean()))
-        print('loss v: ' + str(loss_v.numpy().mean()))
                 
-        return adv, loss_pi, loss_v
+        return loss_pi.numpy().mean(), loss_v.numpy().mean()
     
 
     def train_sil_policy_one_step(self, obs, act, R, is_weights):
@@ -148,13 +148,17 @@ class SIL:
 
         o, a, rew, ret_buf = trajectory 
 
-        dones = [False for _ in range(len(o))]
-        dones[len(dones)-1]=True
+        # dones = [False for _ in range(len(o))]
+        # dones[len(dones)-1]=True
 
         R = ret_buf # self.discount_with_dones(rew, dones, 0.99)
 
-        for idx in range(len(o)):
-            if R[idx] >= 0:
-                self.per_buffer.add(o[idx],a[idx],R[idx])
+        # Only add good trajectories
+        R_mean = np.mean(R)
+
+        if R_mean > 0:
+            for idx in range(len(o)):
+                if R[idx] >= 0:
+                    self.per_buffer.add(o[idx],a[idx],R[idx])
 
         

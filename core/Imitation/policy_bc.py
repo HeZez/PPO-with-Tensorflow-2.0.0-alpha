@@ -1,17 +1,22 @@
 import numpy as np
 import tensorflow as tf
 from utils.logger import log
+from core.PPO.buffers import Buffer_Imitation
 
 
 class Behavioral_Cloning:
 
     '''
-    BC Implementation
+    Behavioral Cloning Implementation --> Works only for categorical networks
+    Maps Observations to actions in a supervised learning setting with Categorlical Cross Entropy
+    Maybe Imitation Buffer can be integrated here!?
+
     '''
 
     def __init__(self,
                     use_bc= True,
-                    bc_iters= 100, 
+                    batch_size_bc= 200,
+                    iters_bc= 100, 
 
                     pi = None, 
                     v = None, 
@@ -21,10 +26,11 @@ class Behavioral_Cloning:
                     num_actions = None,  
                     **kwargs):
 
-        # BC Arguments
+        # Behavioral Cloning Arguments
         self.use_bc = use_bc
-        self.bc_iters = bc_iters
-
+        self.batch_size_bc = batch_size_bc
+        self.iters_bc = iters_bc
+        
         self.pi = pi
         self.v = v
         self.optimizer_pi = optimizer_pi
@@ -32,19 +38,13 @@ class Behavioral_Cloning:
 
         self.num_actions = num_actions
 
-        # Im Buffer ??
-
 
     def update_BC(self, obs, acts): 
         
-
-        for _ in range(self.bc_iters):
+        for _ in range(self.iters_bc):
             loss = self.train_BC_one_step(obs, acts)
-            
-
-        print('loss BC ==> pi: ' + str(loss.numpy().mean()))
                 
-        return loss
+        return loss.numpy().mean()
     
 
     def train_BC_one_step(self, obs, acts):
@@ -65,7 +65,6 @@ class Behavioral_Cloning:
     def bc_loss(self, logits, acts):
         '''
             BC Loss
-
         '''
         labels_one_hot = tf.one_hot(acts, self.num_actions)
         loss = tf.keras.losses.categorical_crossentropy(labels_one_hot, logits, from_logits=True)

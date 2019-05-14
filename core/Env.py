@@ -18,6 +18,8 @@ class UnityEnv():
         self._teacher_brain_name = 'Teacher'
         self._teacher_brain = None
 
+        self._shape = None
+
         # Start ML Agents Environment | Without filename in editor training is started
         log("ML AGENTS INFO")
         if self._env_name == "":
@@ -52,11 +54,15 @@ class UnityEnv():
         self._info = self._env.reset()[self._default_brain_name] 
 
         if self._bool_is_visual:
+            self._shape = self._info.visual_observations[0][0].shape
+
             plt.ion()
             plt.show()
             o = self._info.visual_observations[0][0][None, : , : , :]
             plt.imshow(o[0])
             plt.pause(0.001)
+        else:
+            self._shape = self.num_obs
     
 
     @property
@@ -104,6 +110,10 @@ class UnityEnv():
     @property
     def num_obs(self):
         return self._info.vector_observations.size
+
+    @property
+    def shape(self):
+        return self._shape
 
     def _get_obs_from_info(self, info):
 

@@ -1,12 +1,12 @@
 import tensorflow as tf
 import numpy as np
 
-from core.PPO.models import v_model, pi_gaussian_model
+from core.PPO.models_gaussian import v_model, pi_gaussian_model
 from core.PPO.policy_base import PolicyBase
 from utils.logger import log
 
 
-class Policy_PPO_Continuous(PolicyBase):
+class Policy_PPO_Gaussian(PolicyBase):
 
     def __init__(self,
                  policy_params=dict(), 

@@ -116,9 +116,19 @@ class Buffer_PPO:
     This is the Buffer for the PPO Algorithm
     '''
 
-    def __init__(self, size, obs_size= None, act_size= None, act_type='discrete', gamma= 0.99, lam= 0.95, is_visual=False):
+    def __init__(self, size, obs_size= None, act_size= None, act_type='discrete', gamma= 0.99, lam= 0.95, is_visual=False, shape=None):
             
-        self.obs_buf, self.act_buf = create_arrays(size, obs_size, act_size, act_type, is_visual)
+        #self.obs_buf, self.act_buf = create_arrays(size, obs_size, act_size, act_type, is_visual)
+
+        if isinstance(shape, tuple):
+            self.obs_buf = np.zeros((size,) + shape, dtype= np.float32)
+        else:
+            self.obs_buf = np.zeros((size, shape), dtype= np.float32)
+
+        if act_type == 'discrete':
+            self.act_buf = np.zeros((size,), dtype= np.int32)
+        else:
+            self.act_buf = np.zeros((size, act_size), dtype= np.float32) 
 
         self.adv_buf = np.zeros((size,), dtype=np.float32)
         self.rew_buf = np.zeros((size,), dtype=np.float32)

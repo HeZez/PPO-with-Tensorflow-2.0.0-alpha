@@ -1,8 +1,7 @@
 import tensorflow as tf
 import numpy as np
 
-from core.PPO.models import pi_model, v_model
-from core.PPO.models_conv import pi_model_with_conv, v_model_with_conv
+from core.PPO.models_categorical import pi_model, v_model, pi_model_with_conv, v_model_with_conv
 from core.PPO.policy_base import PolicyBase
 
 from utils.logger import log
@@ -23,7 +22,6 @@ class Policy_PPO_Categorical(PolicyBase):
         else:
             self.pi = pi_model(self.hidden_sizes_pi, self.num_actions)
             self.v = v_model(self.hidden_sizes_v)
-
 
 
     def update(self, observations, actions, advs, returns, logp_t):
