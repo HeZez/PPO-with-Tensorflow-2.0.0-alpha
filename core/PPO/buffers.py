@@ -1,4 +1,5 @@
 import numpy as np
+from core.Env import Continuous, Discrete
 
 
 def statistics_scalar(x):
@@ -10,32 +11,25 @@ def statistics_scalar(x):
     std = np.std(x)
     return mean, std
 
-def create_arrays(size, obs_size, act_size, act_type, is_visual):
+def create_buffers(size, env_info=Discrete):
 
-    if is_visual:
-        obs_buf = np.zeros((size, 84,84,3), dtype= np.float32)
-    else:
-        obs_buf = np.zeros((size, obs_size), dtype= np.float32)
-
-    if act_type == 'discrete':
+    obs_buf = np.zeros((size,) + env_info.obs_shape, dtype= np.float32)
+        
+    if isinstance(env_info, Discrete):
         act_buf = np.zeros((size,), dtype= np.int32)
-    else:
-        act_buf = np.zeros((size, act_size), dtype= np.float32) 
+    elif isinstance(env_info, Continuous):
+        act_buf = np.zeros((size, env_info.act_size), dtype= np.float32)  
     
     return obs_buf, act_buf
 
 
 class Buffer_Imitation:
 
-    def __init__(self, size, obs_size= None, act_size=None, act_type='discrete', is_visual=False):
+    def __init__(self, size, env_info=Discrete):
 
-        self.is_visual = is_visual
         self.size = size
-        self.obs_size = obs_size
-        self.act_size = act_size
-        self.act_type = act_type 
-
-        self.obs_buf, self.act_buf = create_arrays(size, obs_size, act_size, act_type, is_visual)
+        self.env_info = env_info
+        self.obs_buf, self.act_buf = create_buffers(size, env_info= self.env_info)
 
         self.ptr, self.path_start_idx, self.max_size = 0, 0, size
 
@@ -101,7 +95,7 @@ class Buffer_Imitation:
     
     def _reformat(self, idxs, obs, act, batch_size):
 
-        obs_buf, act_buf = create_arrays(batch_size, self.obs_size, self.act_size, self.act_type, self.is_visual)
+        obs_buf, act_buf = create_buffers(batch_size, env_info=self.env_info)
 
         obs_buf = obs[idxs]
         act_buf = act[idxs]
@@ -116,19 +110,14 @@ class Buffer_PPO:
     This is the Buffer for the PPO Algorithm
     '''
 
-    def __init__(self, size, obs_size= None, act_size= None, act_type='discrete', gamma= 0.99, lam= 0.95, is_visual=False, shape=None):
+    def __init__(self, size, env_info= Discrete, gamma= 0.99, lam= 0.95):
             
-        #self.obs_buf, self.act_buf = create_arrays(size, obs_size, act_size, act_type, is_visual)
-
-        if isinstance(shape, tuple):
-            self.obs_buf = np.zeros((size,) + shape, dtype= np.float32)
-        else:
-            self.obs_buf = np.zeros((size, shape), dtype= np.float32)
-
-        if act_type == 'discrete':
+        self.obs_buf = np.zeros((size,) + env_info.obs_shape, dtype= np.float32)
+        
+        if isinstance(env_info, Discrete):
             self.act_buf = np.zeros((size,), dtype= np.int32)
-        else:
-            self.act_buf = np.zeros((size, act_size), dtype= np.float32) 
+        elif isinstance(env_info, Continuous):
+            self.act_buf = np.zeros((size, env_info.act_size), dtype= np.float32) 
 
         self.adv_buf = np.zeros((size,), dtype=np.float32)
         self.rew_buf = np.zeros((size,), dtype=np.float32)
@@ -137,7 +126,7 @@ class Buffer_PPO:
         self.logp_buf = np.zeros((size,), dtype=np.float32)
 
         self.gamma, self.lam = gamma, lam
-        self.ptr, self.path_start_idx, self.max_size = 0,0,size
+        self.ptr, self.path_start_idx, self.max_size = 0, 0, size
 
         self.trajectory = None
  
@@ -195,7 +184,7 @@ class Buffer_PPO:
     def discount_cum_sum(self, vec, discount):
 
         vec_length = len(vec)
-        dcs = np.zeros_like(vec, dtype= 'float32')
+        dcs = np.zeros_like(vec, dtype= np.float32)
 
         for i in reversed(range(vec_length)):
             dcs[i] = vec[i] + (discount * dcs[i+1] if i+1 < vec_length else 0)

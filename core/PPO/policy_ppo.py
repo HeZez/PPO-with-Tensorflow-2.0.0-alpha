@@ -1,42 +1,38 @@
 import tensorflow as tf
 import numpy as np
-
-from core.PPO.models_categorical import pi_model, v_model, pi_model_with_conv, v_model_with_conv
+from core.PPO.models import pi_categorical_model, pi_gaussian_model, v_model
 from core.PPO.policy_base import PolicyBase
-
+from core.Env import Discrete, Continuous
 from utils.logger import log
 
 
-class Policy_PPO_Categorical(PolicyBase):
+class Policy_PPO(PolicyBase):
 
     def __init__(self,
                  policy_params=dict(), 
-                 num_actions = None, 
-                 is_visual = False):
+                 env_info = Discrete):
 
-        super().__init__(**policy_params, num_actions= num_actions)
+        super().__init__(**policy_params, env_info= env_info)
 
-        if is_visual:
-            self.pi = pi_model_with_conv(self.hidden_sizes_pi, self.num_actions)
-            self.v = v_model_with_conv(self.hidden_sizes_v)
-        else:
-            self.pi = pi_model(self.hidden_sizes_pi, self.num_actions)
-            self.v = v_model(self.hidden_sizes_v)
+        # Decide which model to choose
+        if isinstance(self.env_info, Discrete):
+            self.pi = pi_categorical_model(self.hidden_sizes_pi, self.env_info)
+        elif isinstance(self.env_info, Continuous):
+            self.pi = pi_gaussian_model(self.hidden_sizes_pi, self.env_info)
+
+        self.v = v_model(self.hidden_sizes_v, self.env_info)
 
 
     def update(self, observations, actions, advs, returns, logp_t):
         '''
         Update the Policy Gradient and the Value Network
         '''
-
-        # Policy Update Cycle for iter steps
         for i in range(self.train_pi_iters):
             loss_pi, loss_entropy, approx_ent, kl = self.train_pi_one_step(observations, actions, advs, logp_t)
             if kl > 1.5 * self.target_kl:
                 log("Early stopping at step %d due to reaching max kl." %i)
                 break
 
-        # Value Update Cycle for iter steps
         for _ in range(self.train_v_iters):
             loss_v = self.train_v_one_step(observations, returns)
             
@@ -51,20 +47,19 @@ class Policy_PPO_Categorical(PolicyBase):
         return loss 
 
 
-    def _pi_loss(self, logits, logp_old, act, adv):
+    def _pi_loss(self, logits_or_mu, logp_old, act, adv):
 
         # PPO Objective 
-        logp_all = tf.nn.log_softmax(logits)
-        logp = tf.reduce_sum( tf.one_hot(act, self.num_actions) * logp_all, axis=1)
+        logp = self.pi.logp(logits_or_mu, act)
         ratio = tf.exp(logp-logp_old)
         min_adv = tf.where(adv > 0, (1+ self.clip_ratio) * adv, (1-self.clip_ratio) * adv)
 
         # Policy Gradient Loss
         pi_loss = -tf.reduce_mean(tf.minimum(ratio * adv, min_adv))
 
-        # Entropy loss 
-        entropy_loss = tf.reduce_mean(self.entropy(logits))
-        # entropy_loss = tf.reduce_mean(self.entropy2(logits)) 
+        # Entropy loss | Gaussian Policy --> returns Entropy based on log_std | Categorical Policy --> returns entropy based on logits
+        entropy = self.pi.entropy(logits_or_mu)
+        entropy_loss = tf.reduce_mean(entropy)
 
         # Total Loss
         pi_loss -= self.ent_coef * entropy_loss
@@ -81,8 +76,8 @@ class Policy_PPO_Categorical(PolicyBase):
 
         with tf.GradientTape() as tape:
 
-            logits = self.pi(obs)
-            pi_loss, entropy_loss, approx_ent, approx_kl  = self._pi_loss(logits, logp_old, act, adv)
+            logits_or_mu = self.pi(obs)
+            pi_loss, entropy_loss, approx_ent, approx_kl  = self._pi_loss(logits_or_mu, logp_old, act, adv)
             
         grads = tape.gradient(pi_loss, self.pi.trainable_variables)
         grads, grad_norm = tf.clip_by_global_norm(grads, 0.5)
@@ -105,38 +100,7 @@ class Policy_PPO_Categorical(PolicyBase):
 
         return v_loss
 
-
-    def entropy(self, logits):
-        '''
-        Entropy term for more randomness which means more exploration in ppo -> 
-        
-        Due to machine precission error -> 
-        entropy = - tf.reduce_sum (logp_all * tf.log(logp_all) + 1E-12, axis=-1, keepdims=True) 
-        cannot be calculated this way
-        '''
-        
-        a0 = logits - tf.reduce_max(logits, axis= -1, keepdims=True)
-        exp_a0 = tf.exp(a0)
-        z0 = tf.reduce_sum(exp_a0, axis= -1, keepdims=True)
-        p0 = exp_a0 / z0
-        entropy = tf.reduce_sum(p0 * (tf.math.log(z0) - a0), axis= -1)
-
-        return entropy
-
-
-    def entropy2(self, logits):
-        '''
-        Entropy calc with keras over logits ??
-        # calculated with Cross Entropy over logits with itself ??
-        '''
-        entropy = tf.keras.losses.categorical_crossentropy(logits, logits, from_logits=True)
-        return entropy
-
-    def cat_entropy_softmax(self, p0):
-        return -tf.reduce_sum(p0 * tf.math.log(p0 + 1e-6), axis = 1)
-
-    def mse(self, pred, target):
-        return tf.square(pred-target)/2.0
+    
 
 
 

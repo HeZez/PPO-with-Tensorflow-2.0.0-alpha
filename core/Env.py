@@ -4,6 +4,26 @@ import matplotlib.pyplot as plt
 from utils.logger import log
 
 
+class EnvInfo():
+
+    def __init__(self, env_name, is_behavioral_cloning, is_visual, obs_shape, act_size):
+        self.env_name= env_name
+        self.is_behavioral_cloning= is_behavioral_cloning
+        self.is_visual= is_visual
+        self.obs_shape= obs_shape
+        self.act_size= act_size
+
+class Discrete(EnvInfo):
+
+    def __init__(self, env_name, is_behavioral_cloning, is_visual, obs_shape, act_size):
+        super().__init__(env_name, is_behavioral_cloning, is_visual, obs_shape, act_size)
+
+class Continuous(EnvInfo):
+
+    def __init__(self, env_name, is_behavioral_cloning, is_visual, obs_shape, act_size):
+        super().__init__(env_name, is_behavioral_cloning, is_visual, obs_shape, act_size)
+
+
 class UnityEnv():
 
     def __init__(self, env_name= "", seed= 0):
@@ -62,8 +82,17 @@ class UnityEnv():
             plt.imshow(o[0])
             plt.pause(0.001)
         else:
-            self._shape = self.num_obs
+            self._shape = (self.num_obs,)
+
+        if self.action_space_type== 'discrete':
+            self._env_info = Discrete(env_name, self._bool_is_behavioral_cloning, self._bool_is_visual, self._shape, self.num_actions) 
+        elif self.action_space_type== 'continuous':
+            self._env_info = Continuous(env_name, self._bool_is_behavioral_cloning, self._bool_is_visual, self._shape, self.num_actions) 
+            
     
+    @property
+    def EnvInfo(self):
+        return self._env_info
 
     @property
     def env(self):

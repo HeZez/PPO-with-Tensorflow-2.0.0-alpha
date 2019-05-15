@@ -10,9 +10,9 @@ train_params:
   # Number of epochs to run
   epochs: 1000
   # Steps per epoch
-  steps_per_epoch: 120
+  steps_per_epoch: 300
   # max episode length -> termination
-  max_episode_length: 30
+  max_episode_length: 100
 
   # discount factor
   gamma: 0.99
@@ -22,7 +22,7 @@ train_params:
   seed: 0
 
   # Training mode | Load the Model yes/no
-  training: yes
+  training: yes 
   load_model: no
   save_freq: 10
   
@@ -33,7 +33,7 @@ policy_params:
   # leraning rate Policy Network
   lr_pi:  0.001
   # Update Iterations Pi and V
-  train_pi_iters: 40   
+  train_pi_iters: 40
   train_v_iters: 40
   # Hidden Layers
   hidden_sizes_pi: [32,32]

@@ -3,11 +3,10 @@ import numpy as np
 from pprint import pprint
 
 from core.PPO.buffers import Buffer_PPO, Buffer_Imitation
-from core.PPO.policy_categorical import Policy_PPO_Categorical
-from core.PPO.policy_gaussian import Policy_PPO_Gaussian
+from core.PPO.policy_ppo import Policy_PPO
 from core.SIL.policy_sil import SIL
 from core.Imitation.policy_bc import Behavioral_Cloning
-from core.Env import UnityEnv
+from core.Env import UnityEnv, Continuous, Discrete
 
 from utils.logger import log, Logger 
 
@@ -48,25 +47,15 @@ class Trainer_PPO:
         log("Policy Parameters")
         pprint(policy_params, indent=5, width=10)
 
-        if isinstance(self.env.shape, tuple):
-            print(self.env.shape)
+        self.buffer_ppo = Buffer_PPO(self.steps_per_epoch, self.env.EnvInfo, gamma= self.gamma, lam= self.lam)
+        self.agent = Policy_PPO(policy_params= policy_params, env_info= self.env.EnvInfo)
 
-        self.buffer_ppo = Buffer_PPO(steps_per_epoch, obs_size= self.env.num_obs, act_size= self.env.num_actions, 
-                                        act_type= self.env.action_space_type, gamma= gamma, lam= lam, is_visual = self.env.is_visual, shape=self.env.shape)
-
-        self.buffer_imitation = Buffer_Imitation(steps_per_epoch, obs_size=self.env.num_obs, act_size=self.env.num_actions,
-                                                    act_type = self.env.action_space_type, is_visual=self.env.is_visual)
-
-        if self.env.action_space_type == 'discrete':
-            self.agent = Policy_PPO_Categorical(policy_params= policy_params, num_actions= self.env.num_actions, is_visual = self.env.is_visual)
-            if self.sil_params['use_sil']:
-                self.SIL = SIL(**self.sil_params, pi =self.agent.pi, v= self.agent.v, 
-                                optimizer_pi = self.agent.optimizer_pi, optimizer_v = self.agent.optimizer_v, num_actions = self.env.num_actions)
-
-        elif self.env.action_space_type == 'continuous':
-            self.agent = Policy_PPO_Gaussian(policy_params= policy_params, num_actions= self.env.num_actions)
+        if self.sil_params['use_sil']:
+            self.SIL = SIL(**self.sil_params, pi =self.agent.pi, v= self.agent.v, 
+                            optimizer_pi = self.agent.optimizer_pi, optimizer_v = self.agent.optimizer_v, num_actions = self.env.num_actions)
 
         if self.env.is_behavioral_cloning:
+            self.buffer_imitation = Buffer_Imitation(steps_per_epoch, self.env.EnvInfo)
             self.imitation = Behavioral_Cloning(**self.bc_params, pi = self.agent.pi, optimizer_pi = self.agent.optimizer_pi, num_actions= self.env.num_actions)
 
         self.logger = Logger(logger_name)
