@@ -94,14 +94,15 @@ class SIL:
         return pi_loss, adv, v_loss
 
 
-    def sil_policy_loss(self, logits, act, R, V_Pred, is_weights):
+    def sil_policy_loss(self, logits_or_mu, act, R, V_Pred, is_weights):
         '''
             sil_policy_loss = -log_prob * max(R - V_Pred, 0)
             sil_val_loss = 0.5 * max(R - V_Pred, 0) ** 2
             Called on Batch sampled from PER
 
         '''
-        logp = self.log_probs(logits, act)
+        # logp = self.log_probs(logits, act)
+        logp = self.pi.logp(logits_or_mu, act)
 
         clipped_advs2 = tf.math.maximum(R - tf.squeeze(V_Pred), 0)
         clipped_advs = tf.clip_by_value(R - tf.squeeze(V_Pred), 0, 1)
@@ -134,24 +135,9 @@ class SIL:
         return logp
 
 
-    def discount_with_dones(self, rewards, dones, gamma):
-
-        discounted = []
-        r = 0
-        for reward, done in zip(rewards[::-1], dones[::-1]):
-            r = reward + gamma * r * (1.0 - done) 
-            discounted.append(r)
-        return discounted[::-1]
-
-
     def add_episode_to_per(self, trajectory):
 
-        o, a, rew, ret_buf = trajectory 
-
-        # dones = [False for _ in range(len(o))]
-        # dones[len(dones)-1]=True
-
-        R = ret_buf # self.discount_with_dones(rew, dones, 0.99)
+        o, a, R = trajectory 
 
         # Only add good trajectories
         R_mean = np.mean(R)

@@ -29,6 +29,8 @@ def conv_model_functional_API(shape=(84,84,3), activation='elu'):
     x = layer.MaxPooling2D((2, 2))(x)
     outputs = layer.Flatten()(x)
 
+    # outputs = layer.LSTM(32, return_sequences=True, input_shape= (5, 1))(outputs)
+
     model = tf.keras.Model(inputs= inputs, outputs= outputs)
 
     return model
@@ -157,6 +159,9 @@ class pi_gaussian_model(tf.keras.Model):
         self.env_info = env_info
         self.num_outputs = self.env_info.act_size
 
+        if self.env_info.is_visual:
+            self.model = conv_model_functional_API(shape= self.env_info.obs_shape)
+
         self.hidden_layers = tf.keras.Sequential([layer.Dense(h, activation= activation) for h in hidden_sizes])
         self.mu = layer.Dense(self.num_outputs, name='policy_mu')
 
@@ -167,9 +172,13 @@ class pi_gaussian_model(tf.keras.Model):
     @tf.function
     def call(self, inputs):
 
-        tensor_input = tf.convert_to_tensor(inputs)
-        hidden = self.hidden_layers(tensor_input)
-        mu = self.mu(hidden)
+        x = tf.convert_to_tensor(inputs)
+
+        if self.env_info.is_visual:
+            x = self.model(x)
+
+        hidden_mu = self.hidden_layers(x)
+        mu = self.mu(hidden_mu)
         return mu
     
     def get_action_logp(self, obs):
@@ -208,7 +217,7 @@ class pi_gaussian_model(tf.keras.Model):
         pre_sum = -0.5 * (((x-mu) / (tf.exp(log_std)+EPS))**2 + 2 * log_std + np.log(2*np.pi))
         return tf.reduce_sum(pre_sum, axis=1)
 
-    def entropy(self, logits= None):
+    def entropy(self):
         '''
         Entropy term for more randomness which means more exploration in ppo -> 
         '''

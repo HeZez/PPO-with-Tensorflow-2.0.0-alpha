@@ -44,13 +44,16 @@ class Trainer_PPO:
         self.sil_params = sil_params
         self.bc_params = bc_params
 
-        log("Policy Parameters")
-        pprint(policy_params, indent=5, width=10)
+        self.batch_size_bc = self.bc_params['batch_size_bc']
+        self.use_sil = self.sil_params['use_sil']
+
+        # log("Policy Parameters")
+        # pprint(policy_params, indent=5, width=10)
 
         self.buffer_ppo = Buffer_PPO(self.steps_per_epoch, self.env.EnvInfo, gamma= self.gamma, lam= self.lam)
         self.agent = Policy_PPO(policy_params= policy_params, env_info= self.env.EnvInfo)
 
-        if self.sil_params['use_sil']:
+        if self.use_sil:
             self.SIL = SIL(**self.sil_params, pi =self.agent.pi, v= self.agent.v, 
                             optimizer_pi = self.agent.optimizer_pi, optimizer_v = self.agent.optimizer_v, num_actions = self.env.num_actions)
 
@@ -82,7 +85,6 @@ class Trainer_PPO:
 
         if self.env.is_behavioral_cloning:
             o, r, d, o_teacher, prev_act_teacher = self.env.reset() 
-            prev_obs_teacher = o_teacher
         else:
             o, r, d = self.env.reset()
         
@@ -96,7 +98,9 @@ class Trainer_PPO:
                 v_t = self.agent.v.get_value(o)           
                  
                 self.buffer_ppo.store(o, a, r, v_t, logp_t)
-                
+                if self.env.is_behavioral_cloning:
+                    self.buffer_imitation.store(o_teacher, prev_act_teacher)
+                    
                 # make step in env
                 if self.env.is_behavioral_cloning:
                     o, r, d, o_teacher, prev_act_teacher = self.env.step(a)
@@ -120,7 +124,7 @@ class Trainer_PPO:
                         self.logger.store('Rewards', ep_ret)
                         self.logger.store('Eps Length', ep_len)
 
-                        if self.sil_params['use_sil']:
+                        if self.use_sil:
                             trajectory = self.buffer_ppo.get_trajectory()
                             self.SIL.add_episode_to_per(trajectory)
 
@@ -130,11 +134,6 @@ class Trainer_PPO:
                         o, r, d = self.env.reset()
                     
                     ep_ret, ep_len = 0, 0
-
-                # Imitation Learning
-                if self.env.is_behavioral_cloning:
-                    self.buffer_imitation.store(prev_obs_teacher, prev_act_teacher)
-                    prev_obs_teacher = o_teacher
 
                 # END OF FOR STEP LOOP
 
@@ -150,17 +149,14 @@ class Trainer_PPO:
             self.logger.store('V Loss', loss_v)
 
             # Update via Self Imitation Learning
-            if self.sil_params['use_sil']:
+            if self.use_sil:
                 loss_pi_sil, loss_v_sil = self.SIL.update_SIL()
                 self.logger.store('PI Loss SIL', loss_pi_sil)
                 self.logger.store('V Loss SIL', loss_v_sil)
 
             # Update via Imitation Learning
             if self.env.is_behavioral_cloning:
-
-                im_batch_size = self.bc_params['batch_size_bc']
-                im_obs, im_act = self.buffer_imitation.sample(im_batch_size)
-
+                im_obs, im_act = self.buffer_imitation.sample(self.batch_size_bc)
                 if len(im_act) > 0:
                     log('Updating via Behavioral Cloning ...')
                     loss_bc = self.imitation.update_BC(im_obs, im_act)

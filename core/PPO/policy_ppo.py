@@ -22,7 +22,7 @@ class Policy_PPO(PolicyBase):
 
         self.v = v_model(self.hidden_sizes_v, self.env_info)
 
-
+    # @tf.function not working here
     def update(self, observations, actions, advs, returns, logp_t):
         '''
         Update the Policy Gradient and the Value Network
@@ -37,18 +37,16 @@ class Policy_PPO(PolicyBase):
             loss_v = self.train_v_one_step(observations, returns)
             
         # Return Metrics
-        return loss_pi.numpy().mean(), loss_entropy.numpy().mean(), approx_ent.numpy().mean(), kl.numpy().mean(), loss_v.numpy().mean()
+        return loss_pi, loss_entropy, approx_ent, kl, loss_v
         
-
+        
     def _value_loss(self, returns, values):
-
         # Mean Squared Error
         loss = tf.reduce_mean(tf.square(returns - values))
         return loss 
 
 
     def _pi_loss(self, logits_or_mu, logp_old, act, adv):
-
         # PPO Objective 
         logp = self.pi.logp(logits_or_mu, act)
         ratio = tf.exp(logp-logp_old)
@@ -58,7 +56,12 @@ class Policy_PPO(PolicyBase):
         pi_loss = -tf.reduce_mean(tf.minimum(ratio * adv, min_adv))
 
         # Entropy loss | Gaussian Policy --> returns Entropy based on log_std | Categorical Policy --> returns entropy based on logits
-        entropy = self.pi.entropy(logits_or_mu)
+
+        if isinstance(self.env_info, Discrete):
+            entropy = self.pi.entropy(logits_or_mu)
+        else:
+            entropy = self.pi.entropy()
+
         entropy_loss = tf.reduce_mean(entropy)
 
         # Total Loss
@@ -71,7 +74,7 @@ class Policy_PPO(PolicyBase):
         return pi_loss, entropy_loss, approx_ent, approx_kl
 
     
-    @tf.function
+    # @tf.function
     def train_pi_one_step(self, obs, act, adv, logp_old):
 
         with tf.GradientTape() as tape:
@@ -86,7 +89,7 @@ class Policy_PPO(PolicyBase):
         return pi_loss, entropy_loss, approx_ent, approx_kl
 
 
-    @tf.function
+    # @tf.function
     def train_v_one_step(self, obs, returns):
 
         with tf.GradientTape() as tape:

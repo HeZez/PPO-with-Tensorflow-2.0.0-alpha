@@ -31,6 +31,7 @@ class UnityEnv():
         self._env_name = env_name
         self._bool_is_behavioral_cloning = False
         self._bool_is_visual = False
+        self._bool_is_grayscale = False
 
         self._default_brain_name = 'Student'
         self._default_brain = None
@@ -76,10 +77,20 @@ class UnityEnv():
         if self._bool_is_visual:
             self._shape = self._info.visual_observations[0][0].shape
 
+            if self._shape[2] == 3:
+                self._bool_is_grayscale = False
+            else:
+                self._bool_is_grayscale = True
+
             plt.ion()
             plt.show()
-            o = self._info.visual_observations[0][0][None, : , : , :]
-            plt.imshow(o[0])
+
+            if self._bool_is_grayscale:
+                o = self._info.visual_observations[0][0][None, : , : , 0]
+                plt.imshow(o[0], cmap='gray')
+            else:
+                o = self._info.visual_observations[0][0][None, : , : , :]
+                plt.imshow(o[0])
             plt.pause(0.001)
         else:
             self._shape = (self.num_obs,)
