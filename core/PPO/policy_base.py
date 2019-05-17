@@ -15,6 +15,7 @@ class PolicyBase:
                  clip_ratio=0.2,
                  target_kl=0.01,
                  ent_coef=0,
+                 env_info=None,
                  num_actions=None,
                  **kwargs):
         
@@ -30,7 +31,9 @@ class PolicyBase:
         self.ent_coef = ent_coef
 
         # Additional Arguments
+        self.env_info = env_info
         self.num_actions = num_actions
+
 
         # init pi, v and optimizers
         self.pi = None

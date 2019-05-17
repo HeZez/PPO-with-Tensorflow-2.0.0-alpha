@@ -15,6 +15,7 @@ class SIL:
 
     def __init__(self,
                     use_sil= False,
+                    batch_size_sil= 100,
                     sil_iters= 1, 
 
                     pi = None, 
@@ -28,7 +29,9 @@ class SIL:
         # SIL Arguments
         self.use_sil = use_sil
         self.sil_iters = sil_iters
-        self.w_value = 0.01
+        self.w_value = 1
+
+        self.batch_size_sil = batch_size_sil
 
         self.pi = pi
         self.v = v
@@ -44,17 +47,14 @@ class SIL:
         '''
         Update Cycle for SIL if SIL is activated
         '''
-        o, a, R, idxs, is_weights = self.per_buffer.sample(128)
+        o, a, R, idxs, is_weights = self.per_buffer.sample(self.batch_size_sil)
 
         for _ in range(self.sil_iters):
             loss_pi, adv, loss_v = self.train_sil_one_step(o, a, R, is_weights)
             
         self.per_buffer.update_priorities(idxs, adv)
-
-        print('loss pi: ' + str(loss_pi.numpy().mean()))
-        print('loss v: ' + str(loss_v.numpy().mean()))
                 
-        return adv, loss_pi, loss_v
+        return loss_pi.numpy().mean(), loss_v.numpy().mean()
     
 
     def train_sil_policy_one_step(self, obs, act, R, is_weights):
@@ -94,14 +94,15 @@ class SIL:
         return pi_loss, adv, v_loss
 
 
-    def sil_policy_loss(self, logits, act, R, V_Pred, is_weights):
+    def sil_policy_loss(self, logits_or_mu, act, R, V_Pred, is_weights):
         '''
             sil_policy_loss = -log_prob * max(R - V_Pred, 0)
             sil_val_loss = 0.5 * max(R - V_Pred, 0) ** 2
             Called on Batch sampled from PER
 
         '''
-        logp = self.log_probs(logits, act)
+        # logp = self.log_probs(logits, act)
+        logp = self.pi.logp(logits_or_mu, act)
 
         clipped_advs2 = tf.math.maximum(R - tf.squeeze(V_Pred), 0)
         clipped_advs = tf.clip_by_value(R - tf.squeeze(V_Pred), 0, 1)
@@ -134,27 +135,16 @@ class SIL:
         return logp
 
 
-    def discount_with_dones(self, rewards, dones, gamma):
-
-        discounted = []
-        r = 0
-        for reward, done in zip(rewards[::-1], dones[::-1]):
-            r = reward + gamma * r * (1.0 - done) 
-            discounted.append(r)
-        return discounted[::-1]
-
-
     def add_episode_to_per(self, trajectory):
 
-        o, a, rew, ret_buf = trajectory 
+        o, a, R = trajectory 
 
-        dones = [False for _ in range(len(o))]
-        dones[len(dones)-1]=True
+        # Only add good trajectories
+        R_mean = np.mean(R)
 
-        R = ret_buf # self.discount_with_dones(rew, dones, 0.99)
-
-        for idx in range(len(o)):
-            if R[idx] >= 0:
-                self.per_buffer.add(o[idx],a[idx],R[idx])
+        if R_mean > 0:
+            for idx in range(len(o)):
+                if R[idx] >= 0:
+                    self.per_buffer.add(o[idx],a[idx],R[idx])
 
         

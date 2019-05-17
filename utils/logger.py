@@ -26,13 +26,10 @@ def logStr(str=""):
 
 class Logger():
 
-    def __init__(self, academy_name=''):
+    def __init__(self, logger_name=''):
 
         self.metrics = dict()
-
-        file_name_str = academy_name + '__' + str(time.time())
-        self.path = ''
-        self.summary_writer = tf.summary.create_file_writer('./tmp/summaries/' + file_name_str)
+        self.summary_writer = tf.summary.create_file_writer('./tmp/summaries/' + logger_name)
 
 
     def store(self, name, value):
