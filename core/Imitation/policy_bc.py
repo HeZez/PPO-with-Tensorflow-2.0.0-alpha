@@ -8,11 +8,9 @@ class Behavioral_Cloning:
 
     '''
     Behavioral Cloning Implementation --> Works only for categorical networks
-    Maps Observations to actions in a supervised learning setting with Categorlical Cross Entropy
+    Maps Observations to actions in a supervised learning setting with Categorlcal Cross Entropy
     Maybe Imitation Buffer can be integrated here!?
-
     '''
-
     def __init__(self,
                     use_bc= True,
                     batch_size_bc= 200,

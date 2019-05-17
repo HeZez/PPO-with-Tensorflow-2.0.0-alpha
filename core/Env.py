@@ -5,7 +5,6 @@ from utils.logger import log
 
 
 class EnvInfo():
-
     def __init__(self, env_name, is_behavioral_cloning, is_visual, obs_shape, act_size):
         self.env_name= env_name
         self.is_behavioral_cloning= is_behavioral_cloning
@@ -14,12 +13,10 @@ class EnvInfo():
         self.act_size= act_size
 
 class Discrete(EnvInfo):
-
     def __init__(self, env_name, is_behavioral_cloning, is_visual, obs_shape, act_size):
         super().__init__(env_name, is_behavioral_cloning, is_visual, obs_shape, act_size)
 
 class Continuous(EnvInfo):
-
     def __init__(self, env_name, is_behavioral_cloning, is_visual, obs_shape, act_size):
         super().__init__(env_name, is_behavioral_cloning, is_visual, obs_shape, act_size)
 
@@ -75,6 +72,7 @@ class UnityEnv():
         self._info = self._env.reset()[self._default_brain_name] 
 
         if self._bool_is_visual:
+
             self._shape = self._info.visual_observations[0][0].shape
 
             if self._shape[2] == 3:
@@ -91,12 +89,15 @@ class UnityEnv():
             else:
                 o = self._info.visual_observations[0][0][None, : , : , :]
                 plt.imshow(o[0])
+
             plt.pause(0.001)
+
         else:
             self._shape = (self.num_obs,)
 
         if self.action_space_type== 'discrete':
             self._env_info = Discrete(env_name, self._bool_is_behavioral_cloning, self._bool_is_visual, self._shape, self.num_actions) 
+            
         elif self.action_space_type== 'continuous':
             self._env_info = Continuous(env_name, self._bool_is_behavioral_cloning, self._bool_is_visual, self._shape, self.num_actions) 
             

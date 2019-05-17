@@ -4,8 +4,6 @@ from manager import Manager
 # Load yaml file from click argument and pass it to the manager instance
 # Start manager instance
 #
-
-
 @click.command()
 @click.argument('config')
 def run(config=None):

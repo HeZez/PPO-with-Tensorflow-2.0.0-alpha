@@ -92,7 +92,7 @@ class Buffer_Imitation:
         return obs, act
 
     def save(self):
-        obs, act = self.delete_non_act()
+        # obs, act = self.delete_non_act()
         np.savetxt('imitationObs', obs)
         np.savetxt('imitationAct', act)
     
