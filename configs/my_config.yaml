@@ -10,9 +10,9 @@ train_params:
   # Number of epochs to run
   epochs: 1000
   # Steps per epoch
-  steps_per_epoch: 200
+  steps_per_epoch: 250
   # max episode length -> termination
-  max_episode_length: 100
+  max_episode_length: 50
 
   # discount factor
   gamma: 0.99
@@ -33,25 +33,12 @@ policy_params:
   # leraning rate Policy Network
   lr_pi:  0.001
   # Update Iterations Pi and V
-  train_pi_iters: 4
-  train_v_iters: 4
+  train_pi_iters: 5
+  train_v_iters: 5
   # Hidden Layers
-  hidden_sizes_pi: [512,32]
-  hidden_sizes_v: [512,32]
+  hidden_sizes_pi: [64,64]
+  hidden_sizes_v: [64,64]
   # Hyperparameters Policy Update
   clip_ratio: 0.2
   target_kl: 0.01
   ent_coef: 0.1
-
-# Self Imitation Learning Parameters
-sil_params:
-  # Use SIL yes/no
-  use_sil: no
-  batch_size_sil: 128
-  # SIL Update iterations
-  sil_iters: 10
-
-bc_params:
-  use_bc: yes
-  batch_size_bc: 200
-  iters_bc: 50
