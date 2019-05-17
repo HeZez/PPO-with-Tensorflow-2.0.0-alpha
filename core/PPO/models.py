@@ -29,8 +29,6 @@ def conv_model_functional_API(shape=(84,84,3), activation='elu'):
     x = layer.MaxPooling2D((2, 2))(x)
     outputs = layer.Flatten()(x)
 
-    # outputs = layer.LSTM(32, return_sequences=True, input_shape= (5, 1))(outputs)
-
     model = tf.keras.Model(inputs= inputs, outputs= outputs)
 
     return model
