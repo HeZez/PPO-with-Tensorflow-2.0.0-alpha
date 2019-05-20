@@ -1,5 +1,5 @@
 # Choose the Trainer and the Policy to train
-trainer: "Trainer_PPO"
+trainer: "Trainer_PPO" # Trainer_PPO_IMITATION or Trainer_PPO_SIL
 
 # Choose the Environment to load or "" for in Editor training
 env_name:  "" # "./envs/CartPoleV1.exe"
@@ -36,8 +36,8 @@ policy_params:
   train_pi_iters: 4
   train_v_iters: 4
   # Hidden Layers
-  hidden_sizes_pi: [512,32]
-  hidden_sizes_v: [512,32]
+  hidden_sizes_pi: [32,32]
+  hidden_sizes_v: [32,32]
   # Hyperparameters Policy Update
   clip_ratio: 0.2
   target_kl: 0.01

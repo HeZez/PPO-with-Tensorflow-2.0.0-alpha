@@ -1,11 +1,8 @@
 import numpy as np
 import tensorflow as tf
-from utils.logger import log
-from core.PPO.buffers import Buffer_Imitation
 
 
 class Behavioral_Cloning:
-
     '''
     Behavioral Cloning Implementation --> Works only for categorical networks
     Maps Observations to actions in a supervised learning setting with Categorlcal Cross Entropy
@@ -42,7 +39,7 @@ class Behavioral_Cloning:
         for _ in range(self.iters_bc):
             loss = self.train_BC_one_step(obs, acts)
                 
-        return loss.numpy().mean()
+        return loss
     
 
     def train_BC_one_step(self, obs, acts):
