@@ -1,6 +1,6 @@
 import random
 import numpy as np
-from core.SIL.SumTree import SumTree
+from core.SIL.sum_tree import SumTree
 
 
 class ReplayBuffer(object):

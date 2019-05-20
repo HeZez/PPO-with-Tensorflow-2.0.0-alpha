@@ -1,6 +1,6 @@
 import tensorflow as tf
 import numpy as np
-import time
+import time, os, yaml
 
 
 color2code = dict(
@@ -8,7 +8,6 @@ color2code = dict(
     ok='\033[1;32;40m',
     info='\033[1;36;40m'
 )
-
 
 def log(str="", color="info"):
     col = color2code[color]
@@ -22,6 +21,21 @@ def logStr(str=""):
     col = color2code['ok']
     end = "\033[0m"
     print(col + str + end)
+
+def saveYAML(academy_name, config):
+
+     # make path for saving
+    named_tuple = time.localtime()
+    time_string = time.strftime("%m_%d_%Y_%H_%M_%S", named_tuple)
+    save_name = academy_name + "_" + time_string
+    path = "./tmp/" + save_name + "/"
+        
+    os.makedirs(path, exist_ok=True)
+
+    with open(path + academy_name + ".yaml", 'w+') as file:
+        yaml.safe_dump(config, file)
+    
+    return save_name
 
 
 class Logger():

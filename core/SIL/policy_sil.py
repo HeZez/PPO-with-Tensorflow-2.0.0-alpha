@@ -1,12 +1,9 @@
 import numpy as np
 import tensorflow as tf
-
-from core.SIL.PrioritizedExperineceReplay import PrioritizedReplayBuffer 
+from core.SIL.prioritized_experinece_replay import PrioritizedReplayBuffer 
 from utils.logger import log
 
-
 class SIL:
-
     '''
     SIL Implementation following (not exactly):
     https://arxiv.org/pdf/1806.05635.pdf

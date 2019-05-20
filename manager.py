@@ -1,7 +1,7 @@
 import core
 from pprint import pprint
 from mlagents.envs import UnityEnvironment
-from utils.logger import log
+from utils.logger import log, saveYAML
 from core.Env import UnityEnv, GymCartPole
 import yaml, os, time
 
@@ -27,17 +27,8 @@ class Manager:
         # self.env = GymCartPole() 
         self.env = UnityEnv(env_name=env_name,seed =train_params['seed'])
 
-        # make path for saving
-        academy_name = self.env.get_env_academy_name
-        named_tuple = time.localtime()
-        time_string = time.strftime("%m_%d_%Y_%H_%M_%S", named_tuple)
-        self.save_name = academy_name + "_" + time_string
-        self.path = "./tmp/" + self.save_name + "/"
-        
-        os.makedirs(self.path, exist_ok=True)
-
-        with open(self.path + academy_name + ".yaml", 'w+') as file:
-            yaml.safe_dump(config, file)
+        # Save Config to YAML File
+        self.save_name = saveYAML(self.env.get_env_academy_name, config)
 
     def start(self):
 
