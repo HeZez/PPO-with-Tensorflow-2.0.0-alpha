@@ -42,6 +42,9 @@ class PolicyBase:
         self.optimizer_pi = tf.keras.optimizers.Adam(lr= self.lr_pi)
         self.optimizer_v = tf.keras.optimizers.Adam(lr= self.lr_v)
 
+        self.optimizer_q1 = tf.keras.optimizers.Adam(lr= self.lr_pi)
+        self.optimizer_q2 = tf.keras.optimizers.Adam(lr= self.lr_v)
+
 
     def save(self):
 

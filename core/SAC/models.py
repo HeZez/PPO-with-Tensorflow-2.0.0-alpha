@@ -36,21 +36,40 @@ class pi_gaussian_model(tf.keras.Model):
         mu, log_std = self.predict(obs)
         # std deviation
         log_std = LOG_STD_MIN + 0.5 * (LOG_STD_MAX - LOG_STD_MIN) * (log_std + 1)
-        std = tf.exp(self.log_std)
+        std = tf.exp(log_std)
         # sample action
         pi = mu + tf.random.normal(tf.shape(mu)) * std
         # clip actions in range of -1,1 
         # action = tf.clip_by_value(action, -1, 1)
         logp_pi = self.gaussian_likelihood(pi, mu, log_std)
+
+        mu, pi, logp_pi = self.apply_squashing_func(mu, pi, logp_pi)
+
+        # Action scale
+
         return np.squeeze(mu, axis=-1), np.squeeze(pi, axis=-1), np.squeeze(logp_pi, axis=-1)
+
+    def get_mu_pi_logp_pi_2(self, mu, log_std):
+        # std deviation
+        log_std = LOG_STD_MIN + 0.5 * (LOG_STD_MAX - LOG_STD_MIN) * (log_std + 1)
+        std = tf.exp(log_std)
+        # sample action
+        pi = mu + tf.random.normal(tf.shape(mu)) * std
+        # clip actions in range of -1,1 
+        # action = tf.clip_by_value(action, -1, 1)
+        logp_pi = self.gaussian_likelihood(pi, mu, log_std)
+
+        mu, pi, logp_pi = self.apply_squashing_func(mu, pi, logp_pi)
+
+        # Action scale
+
+        return mu, pi, logp_pi
+
 
     def get_action(self, obs, deterministic=False):
         mu, pi, _ = self.get_mu_pi_logp_pi(obs)
         return mu if deterministic else pi
 
-    # def get_logp_pi(self,x, mu, log_std):
-    #     pass
-    #     _, _, logp_pi = self.get_mu_pi_logp_pi()
 
     def gaussian_likelihood(self, x, mu, log_std):
         '''
