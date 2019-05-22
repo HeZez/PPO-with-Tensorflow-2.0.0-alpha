@@ -39,8 +39,8 @@ class Trainer_SAC:
         self.save_freq = save_freq
         self.policy_params = policy_params
 
-        self.start_steps = int(10000)
-        self.batch_size=100
+        self.start_steps = int(0)
+        self.batch_size = 128
 
         log("Policy Parameters")
         pprint(policy_params, indent=5, width=10)
@@ -58,17 +58,17 @@ class Trainer_SAC:
 
         if self.load_model:
             self.agent.load()
+            self.agent.v_target.set_weights(self.agent.v.get_weights())
 
         if self.training:
             log("Starting Trainer ...", color="warning")
             self.train()
         else:
             log("Starting Inference ...", color="warning")
-            # self.inference()
+            self.inference()
 
     def test_agent(self, n=10):
-
-        for j in range(n):
+        for _ in range(n):
             o, r, d = self.env.reset()
             ep_ret, ep_len  = 0, 0
             while not(d or (ep_len == self.max_episode_length)):
@@ -77,8 +77,8 @@ class Trainer_SAC:
                 o, r, d = self.env.step(a)
                 ep_ret += r
                 ep_len += 1
-        self.logger.store("TestEpRet", ep_ret)
-        self.logger.store("TestEpLen", ep_len)
+            self.logger.store("TestEpRet", ep_ret)
+            self.logger.store("TestEpLen", ep_len)
 
     # Main training loop
     def train(self):
@@ -86,68 +86,100 @@ class Trainer_SAC:
         start_time = time.time()
         o, r, d = self.env.reset() 
         ep_ret, ep_len = 0, 0
-        total_steps = self.steps_per_epoch * self.epochs
+        # total_steps = self.steps_per_epoch * self.epochs
+        steps = 0
 
         # Main loop: collect expieriences in env
-        for t in range(total_steps):
+        for epoch in range(self.epochs):
 
-            #if t > self.start_steps:
-            a = self.agent.pi.get_action(o)
-            # else:
-            #     a = self.env.action_space.sample()
-            
-            # Step the env
-            o2, r, d= self.env.step(a)
-            ep_ret += r
-            ep_len += 1
+            for step in range(self.steps_per_epoch):
 
-            d = False if ep_len==self.max_episode_length else d
+                steps +=1
 
-            self.buffer_sac.store(o, a, r, o2, d)
+                if steps > self.start_steps:
+                    a = self.agent.pi.get_action(o)
+                else:
+                    a = np.random.randn(self.env.EnvInfo.act_size) # random env action_space.sample()
+                
+                # Step the env
+                o2, r, d= self.env.step(a)
+                ep_ret += r
+                ep_len += 1
 
-            # Super critical dont forget
-            o = o2
+                d = False if ep_len==self.max_episode_length else d
 
-            if d or(ep_len == self.max_episode_length):
+                self.buffer_sac.store(o, a, r, o2, d)
 
-                for j in range(5):
+                # Super critical dont forget
+                o = o2
 
-                    batch = self.buffer_sac.sample_batch(self.batch_size)
-                    pi_loss, q1_loss, q2_loss, v_loss = self.agent.update(batch['obs1'],batch['obs2'],batch['acts'],batch['rews'], batch['done'])
-                        
-                self.logger.store("EpRet", ep_ret)
-                self.logger.store("EpLen", ep_len)
-                o, r, d = self.env.reset() 
-                ep_ret, ep_len = 0, 0
+                if d or(ep_len == self.max_episode_length) or (step == self.steps_per_epoch-1):
+
+                    for _ in range(7):
+
+                        batch = self.buffer_sac.sample_batch(self.batch_size)
+                        pi_loss, q1_loss, q2_loss, v_loss = self.agent.update(batch, ep_len)
+                            
+                    self.logger.store("EpRet", ep_ret)
+                    self.logger.store("EpLen", ep_len)
+
+                    o, r, d = self.env.reset() 
+                    ep_ret, ep_len = 0, 0
 
             # End of epoch wrap-up
-            if t > 0 and t % self.steps_per_epoch == 0:
-                
-                epoch = t // self.steps_per_epoch
 
-                # Save model
+            # Saving every n steps
+            if (epoch % self.save_freq == 0) or (epoch == self.epochs - 1):
+                self.agent.save()
                
-
                 # Test the performance of the deterministic version of the agent.
-                # print("Testing....")
-                # self.test_agent()
+                print("Testing....")
+                self.test_agent()
                
 
-                # Log info about epoch
-                self.logger.store('Epoch', epoch)
-                
-                self.logger.store('TotalEnvInteracts', t)
-                # self.logger.store('Q1Vals') 
-                # self.logger.store('Q2Vals')         
-                # self.logger.store('VVals') 
-                # self.logger.store('LogPi')
-                self.logger.store('LossPi', pi_loss)
-                self.logger.store('LossQ1', q1_loss)
-                self.logger.store('LossQ2', q2_loss)
-                self.logger.store('LossV', v_loss)
-                self.logger.store('Time', time.time()-start_time)
-                self.logger.log_metrics(t)
+            # Log info about epoch
+            self.logger.store('Epoch', epoch)
+            self.logger.store('Total Steps', steps)
+            self.logger.store('LossPi', pi_loss)
+            self.logger.store('LossQ1', q1_loss)
+            self.logger.store('LossQ2', q2_loss)
+            self.logger.store('LossV', v_loss)
+            self.logger.store('Time', time.time()-start_time)
+            self.logger.log_metrics(epoch)
 
-            
+            # self.logger.store('Q1Vals') 
+            # self.logger.store('Q2Vals')         
+            # self.logger.store('VVals') 
+            # self.logger.store('LogPi')
+
+    def inference(self):
+
+        o, r, d = self.env.reset()
+        ep_ret, ep_len = 0, 0
+         
+        for epoch in range(self.epochs):
+
+            for step in range(self.steps_per_epoch):
+
+                a = self.agent.pi.get_action(o, True)
+                          
+                # make step in env
+                o, r, d = self.env.step(a)
+                  
+                ep_ret += r
+                ep_len += 1
+
+                terminal =  d or (ep_len == self.max_episode_length)
+
+                if terminal or (step == self.steps_per_epoch-1):
+
+                    if terminal and ep_len > 10:
+                        self.logger.store('Rewards', ep_ret)
+                        self.logger.store('Eps Length', ep_len)
+
+                    o, r, d = self.env.reset()
+                    ep_ret, ep_len = 0, 0
+      
+            self.logger.log_metrics(epoch)
 
     

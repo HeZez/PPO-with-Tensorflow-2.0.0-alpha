@@ -10,9 +10,9 @@ train_params:
   # Number of epochs to run
   epochs: 1000
   # Steps per epoch
-  steps_per_epoch: 200
+  steps_per_epoch: 400
   # max episode length -> termination
-  max_episode_length: 100
+  max_episode_length: 200
 
   # discount factor
   gamma: 0.99
@@ -22,9 +22,9 @@ train_params:
   seed: 0
 
   # Training mode | Load the Model yes/no
-  training: yes 
-  load_model: no
-  save_freq: 10
+  training: no 
+  load_model: yes
+  save_freq: 20
   
 # Choose the policy parameters for training
 policy_params:

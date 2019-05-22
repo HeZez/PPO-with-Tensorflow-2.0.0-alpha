@@ -42,6 +42,7 @@ class Policy_PPO(PolicyBase):
         
     def _value_loss(self, returns, values):
         # Mean Squared Error
+        # dif = returns - values
         loss = tf.reduce_mean(tf.square(returns - values))
         return loss 
 
@@ -74,7 +75,7 @@ class Policy_PPO(PolicyBase):
         return pi_loss, entropy_loss, approx_ent, approx_kl
 
     
-    @tf.function
+    # tf.function
     def train_pi_one_step(self, obs, act, adv, logp_old):
 
         with tf.GradientTape() as tape:
@@ -89,7 +90,7 @@ class Policy_PPO(PolicyBase):
         return pi_loss, entropy_loss, approx_ent, approx_kl
 
 
-    @tf.function
+    # @tf.function
     def train_v_one_step(self, obs, returns):
 
         with tf.GradientTape() as tape:

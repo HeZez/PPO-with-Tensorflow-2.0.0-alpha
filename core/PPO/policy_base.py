@@ -38,11 +38,14 @@ class PolicyBase:
         # init pi, v and optimizers
         self.pi = None
         self.v = None
+        
+        self.q1 = None
+        self.q2 = None
 
         self.optimizer_pi = tf.keras.optimizers.Adam(lr= self.lr_pi)
         self.optimizer_v = tf.keras.optimizers.Adam(lr= self.lr_v)
 
-        self.optimizer_q1 = tf.keras.optimizers.Adam(lr= self.lr_pi)
+        self.optimizer_q1 = tf.keras.optimizers.Adam(lr= self.lr_v)
         self.optimizer_q2 = tf.keras.optimizers.Adam(lr= self.lr_v)
 
 
@@ -52,8 +55,17 @@ class PolicyBase:
         self.pi.save_weights('./tmp/ckpts/pi', save_format='tf')
         self.v.save_weights('./tmp/ckpts/v', save_format='tf')
 
+        if self.q1 is not None:
+            self.q1.save_weights('./tmp/ckpts/q1', save_format='tf')
+            self.q2.save_weights('./tmp/ckpts/q2', save_format='tf')
+
+
     def load(self):
         
         log('Loading Model ...')
         self.pi.load_weights('./tmp/ckpts/pi')
         self.v.load_weights('./tmp/ckpts/v')
+
+        if self.q1 is not None:
+            self.q1.load_weights('./tmp/ckpts/q1')
+            self.q2.load_weights('./tmp/ckpts/q2')

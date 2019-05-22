@@ -43,6 +43,11 @@ class ProbabilityDistribution(tf.keras.Model):
 
     
 class pi_categorical_model(tf.keras.Model):
+    '''
+    logits --> log of an odd
+    odd = p/1-p --> chance of an event to ocure
+    logp --> log probabilities = softmax of logits
+    '''
 
     def __init__(self, hidden_sizes_pi= (32, 32), env_info= Discrete, activation='relu'):
 
@@ -141,7 +146,7 @@ class v_model(tf.keras.Model):
         hidden_vals = self.hidden_v_layers(x)
         values = self.value(hidden_vals)
 
-        return  values
+        return  tf.squeeze (values, axis=-1)
     
     def get_value(self, obs):
 
