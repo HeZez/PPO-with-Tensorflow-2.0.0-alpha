@@ -1,6 +1,6 @@
 import tensorflow as tf
 import numpy as np
-from core.PPO.models import pi_categorical_model, pi_gaussian_model, v_model
+from core.PPO.models_ppo import pi_categorical_model, pi_gaussian_model, v_model
 from core.PPO.policy_base import PolicyBase
 from core.Env import Discrete, Continuous
 from utils.logger import log

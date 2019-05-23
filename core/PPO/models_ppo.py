@@ -5,7 +5,7 @@ from core.Env import Discrete, Continuous
 
 EPS = 1e-8
 
-def conv_model_functional_API(shape=(84,84,3), activation='elu'):
+def conv_model_functional_API(shape=(84,84,3), activation='elu', use_lstm= True):
 
     '''
     filters = feature maps where each has an dimensionality d x d 
@@ -21,19 +21,25 @@ def conv_model_functional_API(shape=(84,84,3), activation='elu'):
 
     then flatten layers and connect do mlp for classification
     '''
-
     inputs = tf.keras.Input(shape= shape)
+
     x = layer.Conv2D(filters= 32, kernel_size= (5, 5), strides= 1, padding= 'valid', activation= activation, name='Functional_API')(inputs)
     x = layer.MaxPooling2D((2, 2))(x)
     x = layer.Conv2D(filters= 64, kernel_size= (3, 3), strides= 2, padding= 'valid', activation= activation)(x)
     x = layer.MaxPooling2D((2, 2))(x)
     outputs = layer.Flatten()(x)
-
-    # outputs = layer.LSTM(32, return_sequences=True, input_shape= (5, 1))(outputs)
-
     model = tf.keras.Model(inputs= inputs, outputs= outputs)
 
-    return model
+    input_sequences = tf.keras.Input(shape=(4,) + shape)
+    lstm = tf.keras.layers.TimeDistributed(model)(input_sequences) # returns sequence of 4 of size outputs flattened from conv model
+    lstm = layer.LSTM(32, return_sequences=False)(lstm) # returns the last output of the lstm layer
+    print(lstm)
+    lstm_model = tf.keras.Model(inputs= input_sequences, outputs= lstm)
+
+    if use_lstm:
+        return lstm_model
+    else:
+        return model
 
 
 class ProbabilityDistribution(tf.keras.Model):
@@ -57,14 +63,14 @@ class pi_categorical_model(tf.keras.Model):
         self.num_actions = self.env_info.act_size
 
         if self.env_info.is_visual:
-            self.model = conv_model_functional_API(shape= self.env_info.obs_shape)
+            self.model = conv_model_functional_API(shape= self.env_info.obs_shape, use_lstm= self.env_info.is_frame_stacking) 
 
         self.hidden_pi_layers = tf.keras.Sequential([layer.Dense(h, activation= activation) for h in hidden_sizes_pi])
         self.logits = layer.Dense(self.num_actions, name='policy_logits')
         
         self.dist = ProbabilityDistribution()
 
-    @tf.function
+    # @tf.function
     def call(self, inputs):
 
         x = tf.convert_to_tensor(inputs)
@@ -79,6 +85,8 @@ class pi_categorical_model(tf.keras.Model):
     
     def get_action_logp(self, obs):
 
+        if self.env_info.is_frame_stacking:
+            obs = obs[None, :, :, :, :]
         logits = self.predict(obs)
         action = self.dist.predict(logits)
         logp_t = self.logp(logits, action) 
@@ -130,7 +138,7 @@ class v_model(tf.keras.Model):
         self.env_info= env_info
 
         if self.env_info.is_visual:
-            self.model = conv_model_functional_API(shape= self.env_info.obs_shape)
+            self.model = conv_model_functional_API(shape= self.env_info.obs_shape, use_lstm= self.env_info.is_frame_stacking)
 
         self.hidden_v_layers = tf.keras.Sequential([layer.Dense(h, activation='relu') for h in hidden_sizes_v])
         self.value= layer.Dense(1, name='values')
@@ -149,7 +157,9 @@ class v_model(tf.keras.Model):
         return  tf.squeeze (values, axis=-1)
     
     def get_value(self, obs):
-
+        # for Frame Stacking
+        if self.env_info.is_frame_stacking:
+            obs = obs[None, :, :, :, :]
         value = self.predict(obs)
         return  np.squeeze(value, axis=-1)
 

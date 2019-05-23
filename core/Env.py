@@ -1,29 +1,32 @@
 from mlagents.envs import UnityEnvironment
 import numpy as np
+import tensorflow as tf
 import matplotlib.pyplot as plt
 from utils.logger import log
+from collections import deque
 
 
 class EnvInfo():
-    def __init__(self, env_name, is_behavioral_cloning, is_visual, obs_shape, act_size):
+    def __init__(self, env_name, is_behavioral_cloning, is_visual, obs_shape, act_size, is_frame_stacking):
         self.env_name= env_name
         self.is_behavioral_cloning= is_behavioral_cloning
         self.is_visual= is_visual
+        self.is_frame_stacking = is_frame_stacking
         self.obs_shape= obs_shape
         self.act_size= act_size
 
 class Discrete(EnvInfo):
-    def __init__(self, env_name, is_behavioral_cloning, is_visual, obs_shape, act_size):
-        super().__init__(env_name, is_behavioral_cloning, is_visual, obs_shape, act_size)
+    def __init__(self, env_name, is_behavioral_cloning, is_visual, obs_shape, act_size, is_frame_stacking):
+        super().__init__(env_name, is_behavioral_cloning, is_visual, obs_shape, act_size, is_frame_stacking)
 
 class Continuous(EnvInfo):
-    def __init__(self, env_name, is_behavioral_cloning, is_visual, obs_shape, act_size):
-        super().__init__(env_name, is_behavioral_cloning, is_visual, obs_shape, act_size)
+    def __init__(self, env_name, is_behavioral_cloning, is_visual, obs_shape, act_size, is_frame_stacking):
+        super().__init__(env_name, is_behavioral_cloning, is_visual, obs_shape, act_size, is_frame_stacking)
 
 
 class UnityEnv():
 
-    def __init__(self, env_name= "", seed= 0):
+    def __init__(self, env_name= "", seed= 0, frame_stacking= False):
 
         self._env_name = env_name
         self._bool_is_behavioral_cloning = False
@@ -38,6 +41,11 @@ class UnityEnv():
 
         self._shape = None
 
+        self._bool_frame_stacking = frame_stacking
+        self._stack_size = 4
+        self._frames = deque([np.zeros((84,84,3), dtype=np.float) for i in range(self._stack_size)], maxlen= self._stack_size)
+        
+
         # Start ML Agents Environment | Without filename in editor training is started
         log("ML AGENTS INFO")
         if self._env_name == "":
@@ -45,6 +53,7 @@ class UnityEnv():
         else:
             self._env = UnityEnvironment(file_name= self._env_name, seed= seed)
         log("END ML AGENTS INFO")
+
 
     	# Checks if is behaviroal cloning -> is true if Brain with name 'Teacher' is found
         # Gets the teacher brain
@@ -54,13 +63,16 @@ class UnityEnv():
                 self._teacher_brain = self._env.brains[self._teacher_brain_name]
                 break
 
+
         # default Brain name is Student if behaviroal Cloning is true otherwise takes the first Brain 
         # Take care of this in the Brain Acadmey and names of brains
         if not self._bool_is_behavioral_cloning:
             self._default_brain_name = self._env.brain_names[0]
 
+
         # get the default brain --> can be the first brain or Student brain if behavioral cloning is true
         self._default_brain= self._env.brains[self._default_brain_name]
+
 
         # Check if there are visual observations and set bool_is_visual
         if self._default_brain.number_visual_observations is not 0:
@@ -68,38 +80,38 @@ class UnityEnv():
         else:
             self._bool_is_visual = False
 
+
         # get infos about environment on first reset
         self._info = self._env.reset()[self._default_brain_name] 
 
         if self._bool_is_visual:
-
             self._shape = self._info.visual_observations[0][0].shape
-
-            if self._shape[2] == 3:
-                self._bool_is_grayscale = False
-            else:
-                self._bool_is_grayscale = True
-
             plt.ion()
             plt.show()
-
-            if self._bool_is_grayscale:
-                o = self._info.visual_observations[0][0][None, : , : , 0]
-                plt.imshow(o[0], cmap='gray')
-            else:
+            if self._shape[2] == 3:
+                self._bool_is_grayscale = False
                 o = self._info.visual_observations[0][0][None, : , : , :]
                 plt.imshow(o[0])
-
+            else:
+                self._bool_is_grayscale = True
+                o = self._info.visual_observations[0][0][None, : , : , 0]
+                plt.imshow(o[0], cmap='gray')
             plt.pause(0.001)
 
-        else:
+            # if self._bool_frame_stacking:
+            #     self._shape = (4,84,84,3)
+
+
+        if not self._bool_is_visual:
             self._shape = (self.num_obs,)
 
+
         if self.action_space_type== 'discrete':
-            self._env_info = Discrete(env_name, self._bool_is_behavioral_cloning, self._bool_is_visual, self._shape, self.num_actions) 
+            self._env_info = Discrete(env_name, self._bool_is_behavioral_cloning, self._bool_is_visual, self._shape, self.num_actions, self._bool_frame_stacking) 
+            
             
         elif self.action_space_type== 'continuous':
-            self._env_info = Continuous(env_name, self._bool_is_behavioral_cloning, self._bool_is_visual, self._shape, self.num_actions) 
+            self._env_info = Continuous(env_name, self._bool_is_behavioral_cloning, self._bool_is_visual, self._shape, self.num_actions, self._bool_frame_stacking) 
             
     
     @property
@@ -188,6 +200,17 @@ class UnityEnv():
             if self._bool_is_visual:
                 o = info[self._default_brain_name].visual_observations[0][0]
                 o = o[None, : , : , :]
+
+                # for _ in range(self._stack_size):
+                #     self._frames.append(o[0])
+                # o = tf.concat(list(self._frames), axis=-1)
+
+                if self._bool_frame_stacking:
+                    for _ in range(self._stack_size):
+                        self._frames.append(o[0]) 
+                    stacked_obs = np.stack(self._frames)
+                    o = stacked_obs
+
             else:
                 o = info[self._default_brain_name].vector_observations[0][None, :]
 
@@ -229,6 +252,12 @@ class UnityEnv():
             if self._bool_is_visual:
                 o = info[self._default_brain_name].visual_observations[0][0]
                 o = o[None, : , : , :]
+
+                if self._bool_frame_stacking:
+                    self._frames.append(o[0]) 
+                    stacked_obs = np.stack(self._frames)
+                    o = stacked_obs
+
             else:
                 o = info[self._default_brain_name].vector_observations[0][None, :]
             

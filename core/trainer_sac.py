@@ -39,7 +39,7 @@ class Trainer_SAC:
         self.save_freq = save_freq
         self.policy_params = policy_params
 
-        self.start_steps = int(0)
+        self.start_steps = int(5000)
         self.batch_size = 128
 
         log("Policy Parameters")

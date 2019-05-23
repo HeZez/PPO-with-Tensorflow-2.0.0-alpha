@@ -1,6 +1,6 @@
 import tensorflow as tf
 import numpy as np
-from core.SAC.models import pi_gaussian_model, vf_model
+from core.SAC.models_sac import pi_gaussian_model, vf_model
 from core.PPO.policy_base import PolicyBase
 from core.Env import Discrete, Continuous
 from utils.logger import log

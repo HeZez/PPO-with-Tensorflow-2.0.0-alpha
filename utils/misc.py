@@ -15,7 +15,12 @@ def create_buffers(size, env_info=Discrete):
     '''
     Creates Obs and Act buffers with desired shape and Action Type
     '''
-    obs_buf = np.zeros((size,) + env_info.obs_shape, dtype= np.float32)
+    if env_info.is_frame_stacking:
+        shape = (4,) + env_info.obs_shape
+    else:
+        shape = env_info.obs_shape
+
+    obs_buf = np.zeros((size,) + shape, dtype= np.float32)
     if isinstance(env_info, Discrete):
         act_buf = np.zeros((size,), dtype= np.int32)
     elif isinstance(env_info, Continuous):
