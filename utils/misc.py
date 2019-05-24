@@ -16,7 +16,8 @@ def create_buffers(size, env_info=Discrete):
     Creates Obs and Act buffers with desired shape and Action Type
     '''
     if env_info.is_frame_stacking:
-        shape = (4,) + env_info.obs_shape
+        # shape = (4,) + env_info.obs_shape
+        shape = env_info.obs_shape
     else:
         shape = env_info.obs_shape
 

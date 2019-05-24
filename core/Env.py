@@ -26,7 +26,7 @@ class Continuous(EnvInfo):
 
 class UnityEnv():
 
-    def __init__(self, env_name= "", seed= 0, frame_stacking= False):
+    def __init__(self, env_name= "", seed= 0, frame_stacking= True):
 
         self._env_name = env_name
         self._bool_is_behavioral_cloning = False
@@ -98,8 +98,8 @@ class UnityEnv():
                 plt.imshow(o[0], cmap='gray')
             plt.pause(0.001)
 
-            # if self._bool_frame_stacking:
-            #     self._shape = (4,84,84,3)
+            if self._bool_frame_stacking:
+                self._shape = (84,84,12)
 
 
         if not self._bool_is_visual:
@@ -201,14 +201,10 @@ class UnityEnv():
                 o = info[self._default_brain_name].visual_observations[0][0]
                 o = o[None, : , : , :]
 
-                # for _ in range(self._stack_size):
-                #     self._frames.append(o[0])
-                # o = tf.concat(list(self._frames), axis=-1)
-
                 if self._bool_frame_stacking:
                     for _ in range(self._stack_size):
                         self._frames.append(o[0]) 
-                    stacked_obs = np.stack(self._frames)
+                        stacked_obs = tf.concat(list(self._frames), axis=-1) # np.stack(self._frames)
                     o = stacked_obs
 
             else:
@@ -223,7 +219,6 @@ class UnityEnv():
     def step(self, a):
 
         if self.is_behavioral_cloning:
-
             if self.action_space_type == 'continuous':
                 self.action[self._default_brain_name] = a
                 info = self._env.step(self.action)
@@ -240,7 +235,6 @@ class UnityEnv():
             return o_student, r, d, o_teacher, act_teacher
 
         else:
-
             if self.action_space_type == 'continuous':
                 info = self._env.step(a)
             else:
@@ -255,16 +249,15 @@ class UnityEnv():
 
                 if self._bool_frame_stacking:
                     self._frames.append(o[0]) 
-                    stacked_obs = np.stack(self._frames)
+                    stacked_obs = tf.concat(list(self._frames), axis=-1) # np.stack(self._frames)
                     o = stacked_obs
-
             else:
                 o = info[self._default_brain_name].vector_observations[0][None, :]
             
             return o, r, d
 
 
-
+#####################################################################################################################
 
 '''
     GYM from Open AI for fast testing

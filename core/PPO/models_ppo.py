@@ -5,8 +5,20 @@ from core.Env import Discrete, Continuous
 
 EPS = 1e-8
 
-def conv_model_functional_API(shape=(84,84,3), activation='elu', use_lstm= True):
+def lstm_model(shape= None, model =None):
+    '''
+    lstm model ????
+    '''
+    input_sequences = tf.keras.Input(shape=(4,) + shape)
+    # returns sequence of 4 (Timesteps) of size outputs flattened from conv model
+    lstm = tf.keras.layers.TimeDistributed(model)(input_sequences)
+    # returns the last output of the lstm layer with output size 32
+    lstm = layer.LSTM(32, return_sequences=False)(lstm) 
+    lstm_model = tf.keras.Model(inputs= input_sequences, outputs= lstm)
+    return lstm_model
 
+
+def conv_model_functional_API(shape=(84,84,3), activation='elu', use_lstm= True):
     '''
     filters = feature maps where each has an dimensionality d x d 
 
@@ -22,7 +34,6 @@ def conv_model_functional_API(shape=(84,84,3), activation='elu', use_lstm= True)
     then flatten layers and connect do mlp for classification
     '''
     inputs = tf.keras.Input(shape= shape)
-
     x = layer.Conv2D(filters= 32, kernel_size= (5, 5), strides= 1, padding= 'valid', activation= activation, name='Functional_API')(inputs)
     x = layer.MaxPooling2D((2, 2))(x)
     x = layer.Conv2D(filters= 64, kernel_size= (3, 3), strides= 2, padding= 'valid', activation= activation)(x)
@@ -30,16 +41,13 @@ def conv_model_functional_API(shape=(84,84,3), activation='elu', use_lstm= True)
     outputs = layer.Flatten()(x)
     model = tf.keras.Model(inputs= inputs, outputs= outputs)
 
-    input_sequences = tf.keras.Input(shape=(4,) + shape)
-    lstm = tf.keras.layers.TimeDistributed(model)(input_sequences) # returns sequence of 4 of size outputs flattened from conv model
-    lstm = layer.LSTM(32, return_sequences=False)(lstm) # returns the last output of the lstm layer
-    print(lstm)
-    lstm_model = tf.keras.Model(inputs= input_sequences, outputs= lstm)
-
-    if use_lstm:
-        return lstm_model
-    else:
-        return model
+    # if use_lstm:
+    #     lstm_mod = lstm_model(shape, model)
+    #     return lstm_mod
+    # else:
+    #     return model
+    
+    return model
 
 
 class ProbabilityDistribution(tf.keras.Model):
@@ -70,7 +78,7 @@ class pi_categorical_model(tf.keras.Model):
         
         self.dist = ProbabilityDistribution()
 
-    # @tf.function
+    @tf.function
     def call(self, inputs):
 
         x = tf.convert_to_tensor(inputs)
@@ -86,7 +94,7 @@ class pi_categorical_model(tf.keras.Model):
     def get_action_logp(self, obs):
 
         if self.env_info.is_frame_stacking:
-            obs = obs[None, :, :, :, :]
+            obs = obs[None, :, :, :] #  :]
         logits = self.predict(obs)
         action = self.dist.predict(logits)
         logp_t = self.logp(logits, action) 
@@ -159,7 +167,7 @@ class v_model(tf.keras.Model):
     def get_value(self, obs):
         # for Frame Stacking
         if self.env_info.is_frame_stacking:
-            obs = obs[None, :, :, :, :]
+            obs = obs[None, :, :, :] # :]
         value = self.predict(obs)
         return  np.squeeze(value, axis=-1)
 
