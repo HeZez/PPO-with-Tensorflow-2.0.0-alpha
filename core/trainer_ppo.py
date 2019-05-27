@@ -73,14 +73,20 @@ class Trainer_PPO:
 
             for step in range(self.steps_per_epoch):
 
+                # intr_rew = self.agent.fwd_dyn.get_intrinsic_reward(obs, a, next_obs)
+
                 a, logp_t = self.agent.pi.get_action_logp(o)
                 v_t = self.agent.v.get_value(o)           
-                 
+                
                 self.buffer_ppo.store(o, a, r, v_t, logp_t)
-                    
+                
+                # obs = o 
+
                 # make step in env
                 o, r, d = self.env.step(a)
-                  
+
+                # next_obs = o
+                 
                 ep_ret += r
                 ep_len += 1
 
@@ -92,7 +98,9 @@ class Trainer_PPO:
                         log('Warning: trajectory was cut off by epoch at %d steps.' %(ep_len))
                         
                     last_val = r if d else self.agent.v.get_value(o)
-                    self.buffer_ppo.finish_path(last_val)
+
+                    
+                    self.buffer_ppo.finish_path(last_val, self.agent.fwd_dyn)
 
                     if terminal: 
                         self.logger.store('Rewards', ep_ret)
@@ -105,7 +113,7 @@ class Trainer_PPO:
 
             # Update via PPO
             obs, act, adv, ret, logp_old = self.buffer_ppo.get()
-            loss_pi, loss_entropy, approx_ent, kl, loss_v = self.agent.update(obs,act,adv, ret, logp_old)
+            loss_pi, loss_entropy, approx_ent, kl, loss_v, loss_dyn = self.agent.update(obs,act,adv, ret, logp_old)
 
             # Logging PPO
             self.logger.store('Pi Loss', loss_pi)
@@ -113,6 +121,7 @@ class Trainer_PPO:
             self.logger.store('Approx Ent', approx_ent)
             self.logger.store('KL', kl)
             self.logger.store('V Loss', loss_v)
+            self.logger.store('Dyn Loss', loss_dyn)
 
   
             # Saving every n steps

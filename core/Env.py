@@ -26,7 +26,7 @@ class Continuous(EnvInfo):
 
 class UnityEnv():
 
-    def __init__(self, env_name= "", seed= 0, frame_stacking= True):
+    def __init__(self, env_name= "", seed= 0, frame_stacking= False):
 
         self._env_name = env_name
         self._bool_is_behavioral_cloning = False

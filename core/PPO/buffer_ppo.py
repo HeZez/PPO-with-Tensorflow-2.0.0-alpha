@@ -14,6 +14,7 @@ class Buffer_PPO:
 
         self.adv_buf = np.zeros((size,), dtype=np.float32)
         self.rew_buf = np.zeros((size,), dtype=np.float32)
+        self.intrinsic_rew_buf = np.zeros((size,), dtype=np.float32)
         self.ret_buf = np.zeros((size,), dtype=np.float32)
         self.val_buf = np.zeros((size,), dtype=np.float32)
         self.logp_buf = np.zeros((size,), dtype=np.float32)
@@ -30,17 +31,26 @@ class Buffer_PPO:
         self.obs_buf[self.ptr] = obs
         self.act_buf[self.ptr] = act
         self.rew_buf[self.ptr] = rew
+        # self.intrinsic_rew_buf[self.ptr] = intr_rew
         self.val_buf[self.ptr] = val
         self.logp_buf[self.ptr] = logp
         self.ptr += 1
     
     
-    def finish_path(self, last_val=0):
+    def finish_path(self, last_val=0, intrinsic_model=None):
 
         # Slices the path which to bootstrap
         path_slice = slice(self.path_start_idx, self.ptr)
         rews = np.append(self.rew_buf[path_slice], last_val)
         vals = np.append(self.val_buf[path_slice], last_val)
+
+
+        next_obs = self.obs_buf[path_slice][1:]
+        obs = self.obs_buf[path_slice][:-1]
+        actions = self.act_buf[path_slice][:-1]
+
+        intrinsic_rewards = intrinsic_model.get_intrinsic_reward(obs, actions, next_obs)
+        rews += np.append(intrinsic_rewards.numpy(), [0,0])
 
         # GAE --> Advantages for PPO Update
         self.adv_buf[path_slice] = gae_lambda_advantage(rews, vals, self.gamma, self.lam) 

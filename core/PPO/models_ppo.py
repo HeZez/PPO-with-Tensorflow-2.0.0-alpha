@@ -246,3 +246,41 @@ class pi_gaussian_model(tf.keras.Model):
         '''
         entropy = tf.reduce_sum(self.log_std + 0.5 * np.log(2.0 * np.pi * np.e), axis=-1)
         return entropy
+
+class FwdDyn(tf.keras.Model):
+
+    def __init__ (self, hidden_sizes=(32,32), env_info= Discrete, activation='relu'):
+        super().__init__('FwdDynModel')
+        
+        self.env_info = env_info
+        self.num_outputs = self.env_info.obs_shape[0]
+
+        self.hidden_fwd_layers = tf.keras.Sequential([layer.Dense(h, activation= activation) for h in hidden_sizes])
+        self.next_state = layer.Dense(self.num_outputs, activation='tanh', name='next_state')
+
+    def call(self, inputs):
+
+        x = tf.convert_to_tensor(inputs)
+
+        # if self.env_info.is_visual:
+        #     x = self.model(x)
+
+        hidden_fwd_layers = self.hidden_fwd_layers(x)
+        next_state = self.next_state(hidden_fwd_layers)
+
+        return next_state
+
+    def get_intrinsic_reward(self, obs, actions, next_obs):
+
+        a_arr = []
+        for a in actions:
+            a_arr.append([a])
+
+        
+
+        inputs = tf.concat((obs,a_arr), axis=-1)
+        next_obs_predict = self.predict(inputs)
+
+        square = tf.square(next_obs_predict - next_obs)
+        rs =tf.reduce_sum(square, axis=1)
+        return 0.5 * rs

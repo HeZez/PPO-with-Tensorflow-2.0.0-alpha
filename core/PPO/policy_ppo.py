@@ -1,6 +1,6 @@
 import tensorflow as tf
 import numpy as np
-from core.PPO.models_ppo import pi_categorical_model, pi_gaussian_model, v_model
+from core.PPO.models_ppo import pi_categorical_model, pi_gaussian_model, v_model, FwdDyn
 from core.PPO.policy_base import PolicyBase
 from core.Env import Discrete, Continuous
 from utils.logger import log
@@ -21,12 +21,19 @@ class Policy_PPO(PolicyBase):
             self.pi = pi_gaussian_model(self.hidden_sizes_pi, self.env_info)
 
         self.v = v_model(self.hidden_sizes_v, self.env_info)
+        self.fwd_dyn = FwdDyn(env_info= self.env_info)
 
     # @tf.function not working here
     def update(self, observations, actions, advs, returns, logp_t):
         '''
         Update the Policy Gradient and the Value Network
         '''
+
+        next_obs = observations[1:]
+        obs = observations[:-1]
+        acts = actions[:-1]
+
+
         for i in range(self.train_pi_iters):
             loss_pi, loss_entropy, approx_ent, kl = self.train_pi_one_step(observations, actions, advs, logp_t)
             if kl > 1.5 * self.target_kl:
@@ -35,10 +42,31 @@ class Policy_PPO(PolicyBase):
 
         for _ in range(self.train_v_iters):
             loss_v = self.train_v_one_step(observations, returns)
+            loss_dyn = self.train_fwd_dyn_one_step(obs, acts, next_obs)
             
         # Return Metrics
-        return loss_pi, loss_entropy, approx_ent, kl, loss_v
+        return loss_pi, loss_entropy, approx_ent, kl, loss_v, loss_dyn
         
+    def _dyn_loss(self,next_obs, next_obs_preds):
+        return 0.5 * tf.reduce_mean(tf.square(next_obs-next_obs_preds))
+
+    # @tf.function
+    def train_fwd_dyn_one_step(self, obs, actions, next_obs):
+        a_arr = []
+        for a in actions:
+            a_arr.append([a])
+        inputs = tf.concat((obs,a_arr), axis=-1)
+
+        with tf.GradientTape() as tape:
+
+            next_obs_preds = self.fwd_dyn(inputs)
+            dyn_loss = self._dyn_loss(next_obs, next_obs_preds)
+
+        grads = tape.gradient(dyn_loss, self.fwd_dyn.trainable_variables)
+        # grads, grad_norm = tf.clip_by_global_norm(grads, 0.5)
+        self.optimizer_fwd_dyn.apply_gradients(zip(grads, self.fwd_dyn.trainable_variables))
+
+        return dyn_loss
         
     def _value_loss(self, returns, values):
         # Mean Squared Error

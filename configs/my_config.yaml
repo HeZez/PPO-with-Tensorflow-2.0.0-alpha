@@ -1,5 +1,5 @@
 # Choose the Trainer and the Policy to train
-trainer: "Trainer_SAC" # Trainer_PPO_IMITATION or Trainer_PPO_SIL
+trainer: "Trainer_PPO" # Trainer_PPO_IMITATION or Trainer_PPO_SIL
 
 # Choose the Environment to load or "" for in Editor training
 env_name:  "" # "./envs/CartPoleV1.exe"
@@ -10,9 +10,9 @@ train_params:
   # Number of epochs to run
   epochs: 1000
   # Steps per epoch
-  steps_per_epoch: 300
+  steps_per_epoch: 200
   # max episode length -> termination
-  max_episode_length: 150
+  max_episode_length: 50
 
   # discount factor
   gamma: 0.99
