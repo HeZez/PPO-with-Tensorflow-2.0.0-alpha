@@ -24,15 +24,14 @@ class Policy_PPO(PolicyBase):
         self.fwd_dyn = FwdDyn(env_info= self.env_info)
 
     # @tf.function not working here
-    def update(self, observations, actions, advs, returns, logp_t):
+    def update(self, observations, actions, advs, returns, logp_t): #, io, ia, ion):
         '''
         Update the Policy Gradient and the Value Network
         '''
 
-        next_obs = observations[1:]
-        obs = observations[:-1]
-        acts = actions[:-1]
-
+        # next_obs = ion # observations[1:]
+        # obs = io # observations[:-1]
+        # acts = ia # actions[:-1]
 
         for i in range(self.train_pi_iters):
             loss_pi, loss_entropy, approx_ent, kl = self.train_pi_one_step(observations, actions, advs, logp_t)
@@ -42,13 +41,15 @@ class Policy_PPO(PolicyBase):
 
         for _ in range(self.train_v_iters):
             loss_v = self.train_v_one_step(observations, returns)
-            loss_dyn = self.train_fwd_dyn_one_step(obs, acts, next_obs)
+        
+        # for _ in range(80):
+        #     loss_dyn = self.train_fwd_dyn_one_step(obs, acts, next_obs)
             
         # Return Metrics
-        return loss_pi, loss_entropy, approx_ent, kl, loss_v, loss_dyn
+        return loss_pi, loss_entropy, approx_ent, kl, loss_v
         
     def _dyn_loss(self,next_obs, next_obs_preds):
-        return 0.5 * tf.reduce_mean(tf.square(next_obs-next_obs_preds))
+        return 0.5 * tf.reduce_mean(tf.reduce_sum(tf.square(next_obs-next_obs_preds), axis=1))
 
     # @tf.function
     def train_fwd_dyn_one_step(self, obs, actions, next_obs):

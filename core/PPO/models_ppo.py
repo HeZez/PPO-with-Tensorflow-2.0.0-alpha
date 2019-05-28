@@ -276,11 +276,12 @@ class FwdDyn(tf.keras.Model):
         for a in actions:
             a_arr.append([a])
 
-        
-
         inputs = tf.concat((obs,a_arr), axis=-1)
         next_obs_predict = self.predict(inputs)
 
         square = tf.square(next_obs_predict - next_obs)
         rs =tf.reduce_sum(square, axis=1)
-        return 0.5 * rs
+
+        clip = tf.clip_by_value(rs, 0, 0.1)
+
+        return 0.5 * clip
