@@ -26,16 +26,16 @@ class Buffer_PPO:
         self.ptr, self.path_start_idx, self.max_size = 0, 0, size
 
         self.trajectory = None
-        self.intr_traj = None
  
-
+    def store_intrinsic_reward(self, i_rew):
+        self.intrinsic_rew_buf[self.ptr - 1] = i_rew
+    
     def store(self, obs, act, rew, val, logp):
 
         assert self.ptr < self.max_size
         self.obs_buf[self.ptr] = obs
         self.act_buf[self.ptr] = act
         self.rew_buf[self.ptr] = rew
-        # self.intrinsic_rew_buf[self.ptr] = intr_rew
         self.val_buf[self.ptr] = val
         self.logp_buf[self.ptr] = logp
         self.ptr += 1
@@ -45,15 +45,11 @@ class Buffer_PPO:
 
         # Slices the path which to bootstrap
         path_slice = slice(self.path_start_idx, self.ptr)
+        intrinsic_rews = np.append(self.intrinsic_rew_buf[path_slice], 0.0)
         rews = np.append(self.rew_buf[path_slice], last_val)
         vals = np.append(self.val_buf[path_slice], last_val)
 
-
-        # next_obs = self.obs_buf[path_slice][1:]
-        # obs = self.obs_buf[path_slice][:-1]
-        # actions = self.act_buf[path_slice][:-1]
-        # intrinsic_rewards = intrinsic_model.get_intrinsic_reward(obs, actions, next_obs)
-        # rews += np.append(intrinsic_rewards.numpy(), [0,0])
+        rews += intrinsic_rews
 
         # GAE --> Advantages for PPO Update
         self.adv_buf[path_slice] = gae_lambda_advantage(rews, vals, self.gamma, self.lam) 
@@ -68,21 +64,15 @@ class Buffer_PPO:
     def get_trajectory(self):
         return self.trajectory
 
-    def set_intr_rew(self, intrinsic_model=None):
+    # def set_intr_rew(self, intrinsic_model=None):
+    #     path_slice = slice(self.path_start_idx, self.ptr)
+    #     next_obs = self.obs_buf[path_slice][1:]
+    #     obs = self.obs_buf[path_slice][:-1]
+    #     actions = self.act_buf[path_slice][:-1]
+    #     intrinsic_rewards = intrinsic_model.get_intrinsic_reward(obs, actions, next_obs)
+    #     self.rew_buf[path_slice] +=np.append(intrinsic_rewards.numpy(),[0])
 
-        path_slice = slice(self.path_start_idx, self.ptr)
-        next_obs = self.obs_buf[path_slice][1:]
-        obs = self.obs_buf[path_slice][:-1]
-        actions = self.act_buf[path_slice][:-1]
-        intrinsic_rewards = intrinsic_model.get_intrinsic_reward(obs, actions, next_obs)
-        self.rew_buf[path_slice] +=np.append(intrinsic_rewards.numpy(),[0])
-
-    #     self.iobs_buf[path_slice] = np.append(obs, np.zeros_like(self.inext_obs_buf[0]))
-    #     self.inext_obs_buf[path_slice] = np.append(next_obs, np.zeros_like(self.inext_obs_buf[0]))
-    #     self.iact_buf[path_slice] = np.append(actions, np.zeros_like(self.iact_buf[0]))
-        
-    # def get_intr_data(self):
-    #     return [self.iobs_buf, self.iact_buf, self.inext_obs_buf]
+    
 
 
     def get(self):

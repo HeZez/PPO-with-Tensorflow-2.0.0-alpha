@@ -29,9 +29,9 @@ class Policy_PPO(PolicyBase):
         Update the Policy Gradient and the Value Network
         '''
 
-        # next_obs = ion # observations[1:]
-        # obs = io # observations[:-1]
-        # acts = ia # actions[:-1]
+        # next_obs = observations[1:]
+        # obs = observations[:-1]
+        # acts = actions[:-1]
 
         for i in range(self.train_pi_iters):
             loss_pi, loss_entropy, approx_ent, kl = self.train_pi_one_step(observations, actions, advs, logp_t)
@@ -42,21 +42,28 @@ class Policy_PPO(PolicyBase):
         for _ in range(self.train_v_iters):
             loss_v = self.train_v_one_step(observations, returns)
         
-        # for _ in range(80):
-        #     loss_dyn = self.train_fwd_dyn_one_step(obs, acts, next_obs)
-            
         # Return Metrics
         return loss_pi, loss_entropy, approx_ent, kl, loss_v
         
+    def train_intrinsic(self, obs, act, next_obs):
+        for _ in range(self.train_v_iters):
+            loss_dyn = self.train_fwd_dyn_one_step(obs, act, next_obs)
+            print(loss_dyn.numpy())
+            
+        
+        
     def _dyn_loss(self,next_obs, next_obs_preds):
-        return 0.5 * tf.reduce_mean(tf.reduce_sum(tf.square(next_obs-next_obs_preds), axis=1))
+        return 0.5 * tf.reduce_mean(tf.square(next_obs - next_obs_preds))
 
     # @tf.function
     def train_fwd_dyn_one_step(self, obs, actions, next_obs):
-        a_arr = []
-        for a in actions:
-            a_arr.append([a])
-        inputs = tf.concat((obs,a_arr), axis=-1)
+        # a_arr = []
+        # for a in actions:
+        #     a_arr.append([a])
+        # inputs = tf.concat((obs,a_arr), axis=-1)
+
+        inputs = tf.concat((obs[0],[actions]), axis=0)
+        inputs = inputs[None,:]
 
         with tf.GradientTape() as tape:
 

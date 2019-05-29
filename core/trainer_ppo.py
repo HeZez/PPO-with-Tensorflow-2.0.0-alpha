@@ -78,8 +78,16 @@ class Trainer_PPO:
                 
                 self.buffer_ppo.store(o, a, r, v_t, logp_t)
 
+                o_t, a_t = o, a
+
                 # make step in env
                 o, r, d = self.env.step(a)
+
+                o_t_next = o
+
+                intrinsic_reward_t = self.agent.fwd_dyn.get_intrinsic_reward(o_t, a_t, o_t_next)
+                self.buffer_ppo.store_intrinsic_reward(intrinsic_reward_t)
+                self.agent.train_intrinsic(o_t,a_t,o_t_next)
                  
                 ep_ret += r
                 ep_len += 1
@@ -92,13 +100,11 @@ class Trainer_PPO:
                         log('Warning: trajectory was cut off by epoch at %d steps.' %(ep_len))
                         
                     last_val = r if d else self.agent.v.get_value(o)
+                    self.buffer_ppo.finish_path(last_val)
 
                     if terminal: 
                         self.logger.store('Rewards', ep_ret)
                         self.logger.store('Eps Length', ep_len)
-                        # self.buffer_ppo.set_intr_rew(self.agent.fwd_dyn)
-                   
-                    self.buffer_ppo.finish_path(last_val)
 
                     o, r, d = self.env.reset()
                     ep_ret, ep_len = 0, 0

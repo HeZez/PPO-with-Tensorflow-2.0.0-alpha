@@ -272,16 +272,17 @@ class FwdDyn(tf.keras.Model):
 
     def get_intrinsic_reward(self, obs, actions, next_obs):
 
-        a_arr = []
-        for a in actions:
-            a_arr.append([a])
+        # a_arr = []
+        # for a in actions:
+        #     a_arr.append([a])
 
-        inputs = tf.concat((obs,a_arr), axis=-1)
+        inputs = tf.concat((obs[0],[actions]), axis=0)
+        inputs = inputs[None,:]
         next_obs_predict = self.predict(inputs)
 
         square = tf.square(next_obs_predict - next_obs)
         rs =tf.reduce_sum(square, axis=1)
 
-        clip = tf.clip_by_value(rs, 0, 0.1)
+        clip = rs # tf.clip_by_value(rs, 0, 0.1)
 
         return 0.5 * clip
